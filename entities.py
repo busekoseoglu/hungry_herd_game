@@ -38,7 +38,7 @@ class Crop:
     def draw(self, screen, sprites):
         growth = self.timer / self.growth_time
         if self.state == CropState.MATURE:
-            spr_key = 'crop_mature' if self.type == FoodType.CARROT else 'wheat_mature'
+            spr_key = 'crop_mature' if self.type == FoodType.CARROT else 'wheat'
             spr = sprites.get(spr_key)
             if spr:
                 scaled = pygame.transform.smoothscale(spr, (30, 36))
