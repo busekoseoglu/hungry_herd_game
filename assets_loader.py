@@ -5,6 +5,7 @@ import constants
 
 class AssetsLoader:
     """Handles asset loading and procedural generation"""
+    VERSION = "1.2.1"
     
     REQUIRED_ASSETS = [
         'horse', 'player', 'apple', 'apple_pale', 'carrot', 'carrot_pale',
@@ -44,10 +45,12 @@ class AssetsLoader:
         
         # Initialize mixer
         try:
-            pygame.mixer.init(44100, -16, 2, 512)
-            print("Audio mixer initialized successfully.")
+            print(f"DEBUG: AssetsLoader v{self.VERSION} initialization...")
+            if not pygame.mixer.get_init():
+                pygame.mixer.init(44100, -16, 2, 512)
+                print("DEBUG: Audio mixer initialized.")
         except Exception as e:
-            print(f"Warning: Audio mixer failed to initialize: {e}")
+            print(f"DEBUG: Audio mixer failure: {e}")
 
     def load_all(self):
         """Main method to load or generate all assets"""
