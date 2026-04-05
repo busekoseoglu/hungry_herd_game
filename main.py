@@ -19,7 +19,8 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
-        self.version = "v1.3.0"
+        self.version = "v1.3.1"
+        self.game_state = "START"
         
         # Assets
         self.loader = AssetsLoader(os.path.join(os.getcwd(), "assets"))
@@ -97,11 +98,20 @@ class Game:
                 pygame.quit()
                 sys.exit()
             
+            if event.type == pygame.MOUSEBUTTONDOWN and self.game_state == "START":
+                self.loader.play_bg_music()
+                self.game_state = "PLAYING"
+
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    if self.game_over:
-                        self.reset_game()
-                    else:
+                if self.game_state == "START":
+                    if event.key == pygame.K_SPACE:
+                        self.loader.play_bg_music()
+                        self.game_state = "PLAYING"
+                else: 
+                    if event.key == pygame.K_SPACE:
+                        if self.game_over:
+                            self.reset_game()
+                        else:
                             # Toggle Shop or Trash
                             if abs(self.player.x - constants.STORAGE_X) < 120 and abs(self.player.y - constants.STORAGE_Y) < 120:
                                 self.shop_open = not self.shop_open
@@ -341,6 +351,10 @@ class Game:
         # 0. Clear screen
         self.screen.fill((0, 0, 0))
 
+        if self.game_state == "START":
+            self._draw_start_screen()
+            return
+
         # 1. Fill background (Grass)
         for x in range(0, constants.SCREEN_WIDTH, 100):
             for y in range(0, constants.SCREEN_HEIGHT, 100):
@@ -532,6 +546,62 @@ class Game:
 
         if prompt:
             self._draw_centered_text(prompt, self.player.y - 70, constants.COLOR_BLACK, self.font_small)
+
+    def _draw_start_screen(self):
+        # Premium Start Screen with pulsing text
+        # 1. Background (Blurry effect by scaling and overlay)
+        bg = self.sprites.get('bg_horses')
+        if bg:
+            self.screen.blit(bg, (0, 0))
+            
+        # 2. Dark Premium Overlay
+        overlay = pygame.Surface((constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((10, 10, 30, 200)) 
+        self.screen.blit(overlay, (0, 0))
+        
+        # 3. Logo/Title with Shadow
+        title_y = constants.SCREEN_HEIGHT // 2 - 120
+        # Shadow
+        shadow_surf = self.font_large.render("HUNGRY HERD", True, (0, 0, 0))
+        shadow_rect = shadow_surf.get_rect(center=(constants.SCREEN_WIDTH // 2 + 4, title_y + 4))
+        self.screen.blit(shadow_surf, shadow_rect)
+        # Main Title
+        self._draw_centered_text("HUNGRY HERD", title_y, (255, 255, 255), self.font_large)
+        
+        # Subtitle
+        self._draw_centered_text("Çiftliğini Kur, Atlarını Besle!", title_y + 60, (140, 255, 140), self.font_small)
+
+        # 4. Pulsing Interaction Prompt
+        pulse = (math.sin(pygame.time.get_ticks() / 300) + 1) / 2
+        pulse_alpha = int(140 + pulse * 115) 
+        
+        prompt_y = title_y + 180
+        prompt_text = "BAŞLAMAK İÇİN TIKLA"
+        
+        # Button Box
+        btn_w, btn_h = 420, 80
+        btn_rect = pygame.Rect((constants.SCREEN_WIDTH - btn_w) // 2, prompt_y - 25, btn_w, btn_h)
+        btn_surf = pygame.Surface((btn_w, btn_h), pygame.SRCALPHA)
+        pygame.draw.rect(btn_surf, (255, 255, 255, 30), (0, 0, btn_w, btn_h), border_radius=20)
+        # Gold pulsing border
+        border_color = (255, 215, 0, pulse_alpha)
+        pygame.draw.rect(btn_surf, border_color, (0, 0, btn_w, btn_h), width=4, border_radius=20)
+        self.screen.blit(btn_surf, btn_rect.topleft)
+
+        # Text
+        text_color = (255, 255, 255, pulse_alpha)
+        text_surf = self.font_small.render(prompt_text, True, text_color)
+        text_rect = text_surf.get_rect(center=btn_rect.center)
+        self.screen.blit(text_surf, text_rect)
+        
+        # 5. Mute Hint
+        self._draw_centered_text("(Sesi açmak için tıkla)", prompt_y + 75, (160, 160, 160), self.font_small)
+        
+        # Version
+        self._draw_text(self.version, (20, constants.SCREEN_HEIGHT - 35), (120, 120, 120), self.font_small)
+
+        # Version
+        self._draw_text(self.version, (20, constants.SCREEN_HEIGHT - 35), (120, 120, 120), self.font_small)
 
 if __name__ == "__main__":
     game = Game()
