@@ -19,6 +19,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
+        self.version = "v1.0.3"
         
         # Assets
         self.loader = AssetsLoader(os.path.join(os.getcwd(), "assets"))
@@ -307,6 +308,9 @@ class Game:
             # Shadow
             self.screen.blit(self.font_large.render(msg, True, (0,0,0)), rect.move(3,3))
             self.screen.blit(surf, rect)
+
+        # Version tag
+        self._draw_text(self.version, (constants.SCREEN_WIDTH - 60, constants.SCREEN_HEIGHT - 30), (100, 100, 100), self.font_small)
 
         if self.shop_open:
             self._draw_shop_popup()
