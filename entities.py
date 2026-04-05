@@ -139,7 +139,11 @@ class Horse:
         if level >= 2: pool.append(FoodType.APPLE)
         if level >= 4: pool.append(FoodType.WHEAT)
 
-        return [random.choice(pool) for _ in range(num_items)]
+        reqs = [random.choice(pool) for _ in range(num_items)]
+        # Force Wheat at Level 4+ to guide player
+        if level >= 4 and FoodType.WHEAT not in reqs:
+            reqs[random.randint(0, len(reqs)-1)] = FoodType.WHEAT
+        return reqs
 
     def update(self, dt) -> Optional[Poop]:
         if self.state == HorseState.WAITING:

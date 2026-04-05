@@ -249,7 +249,7 @@ class Game:
         
         if new_lvl > self.level:
             self.level = new_lvl
-            self.player.coins += 50
+            self.player.coins += 25
             # Reset horses to adapt to new level parameters
             for h in self.horses:
                 h.reset(self.level)
