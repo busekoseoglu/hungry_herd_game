@@ -207,7 +207,7 @@ class Player:
     def __init__(self):
         self.x = constants.SCREEN_WIDTH // 2
         self.y = constants.SCREEN_HEIGHT // 2
-        self.speed = 300
+        self.speed = 500
         self.state = PlayerState.EMPTY
         self.carrying_item: Optional[str] = None # "CARROT", "APPLE", "POOP", "SEED", "SAPLING"
         
