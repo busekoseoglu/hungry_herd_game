@@ -257,7 +257,7 @@ class Game:
             
             # Unlock Notifications
             if self.level == 3 and not self.unlocked_notifs[3]:
-                self.notification_msg = "✨ YENİ GELİŞTİRMELERİN KİLİDİ AÇILDI! ✨"
+                self.notification_msg = "✨ YENİ GELİŞTİRMELER AÇILDI! Marketi ziyaret et. ✨"
                 self.notification_timer = 6.0
                 self.unlocked_notifs[3] = True
             elif self.level == 5 and not self.unlocked_notifs[5]:
@@ -415,6 +415,19 @@ class Game:
             ty = notif_y + (notif_h - text.get_height()) // 2
             self.screen.blit(shadow, (tx + 2, ty + 2))
             self.screen.blit(text, (tx, ty))
+
+        # 6. Active Power-ups (Timers) - Top Center below Level
+        timer_y = 115
+        if self.player.speed_boost_timer > 0:
+            msg = f"HIZ: {int(self.player.speed_boost_timer)}s"
+            self._draw_centered_text(msg, timer_y, (255, 100, 0), self.font_small)
+            timer_y += 25
+        if self.player.basket_timer > 0:
+            msg = f"SEPET: {int(self.player.basket_timer)}s"
+            self._draw_centered_text(msg, timer_y, (0, 255, 100), self.font_small)
+
+        # Version tag
+        self._draw_text(self.version, (constants.SCREEN_WIDTH - 60, constants.SCREEN_HEIGHT - 30), (100, 100, 100), self.font_small)
 
         if self.game_over:
             self._draw_game_over()
