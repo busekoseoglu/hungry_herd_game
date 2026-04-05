@@ -204,15 +204,30 @@ class Player:
     def __init__(self):
         self.x = constants.SCREEN_WIDTH // 2
         self.y = constants.SCREEN_HEIGHT // 2
-        self.speed = 240
+        self.base_speed = 240
+        self.speed = self.base_speed
         self.state = PlayerState.EMPTY
-        self.carrying_item: Optional[str] = None # "CARROT", "APPLE", "POOP", "SEED", "SAPLING"
+        self.items: List[str] = [] # Supports multiple items for Big Basket
         
         self.coins = constants.INITIAL_COINS
         self.carrot_seeds = 0
         self.apple_saplings = 0
         
+        # Power-up timers
+        self.speed_boost_timer = 0.0
+        self.basket_timer = 0.0
+        
     def move(self, keys, dt):
+        # Update timers
+        if self.speed_boost_timer > 0:
+            self.speed_boost_timer -= dt
+            self.speed = self.base_speed * 1.6 # 60% boost
+        else:
+            self.speed = self.base_speed
+
+        if self.basket_timer > 0:
+            self.basket_timer -= dt
+
         dx, dy = 0, 0
         if keys[pygame.K_LEFT] or keys[pygame.K_a]: dx -= 1
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]: dx += 1
@@ -233,14 +248,17 @@ class Player:
         if spr:
             screen.blit(spr, (int(self.x - 18), int(self.y - 22)))
             
-        if self.state != PlayerState.EMPTY and self.carrying_item:
-            item_spr_name = self.carrying_item.lower()
-            if self.carrying_item == "SEED": item_spr_name = 'crop_seed'
-            elif self.carrying_item == "SAPLING": item_spr_name = 'agac_1'
+        # Draw all items in inventory
+        for i, item in enumerate(self.items):
+            item_spr_name = item.lower()
+            if item == "SEED": item_spr_name = 'crop_seed'
+            elif item == "SAPLING": item_spr_name = 'agac_1'
             
             item_spr = sprites.get(item_spr_name)
             if item_spr:
                 sw, sh = item_spr.get_size()
-                scale = 30 / max(sw, sh)
+                scale = 25 / max(sw, sh)
                 scaled = pygame.transform.smoothscale(item_spr, (int(sw*scale), int(sh*scale)))
-                screen.blit(scaled, (int(self.x - scaled.get_width()//2), int(self.y - 50)))
+                # Stack items above head
+                offset_y = -50 - (i * 20)
+                screen.blit(scaled, (int(self.x - scaled.get_width()//2), int(self.y + offset_y)))

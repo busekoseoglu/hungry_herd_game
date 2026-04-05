@@ -19,7 +19,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
-        self.version = "v1.0.6"
+        self.version = "v1.0.7"
         
         # Assets
         self.loader = AssetsLoader(os.path.join(os.getcwd(), "assets"))
@@ -84,14 +84,20 @@ class Game:
                         self._handle_interaction()
                     else:
                         self.shop_open = False
+                
                 if event.key == pygame.K_e:
                     self._handle_interaction()
+
                 # Shop keyboard shortcuts
                 if self.shop_open:
                     if event.key == pygame.K_1 or event.key == pygame.K_KP1:
                         self._buy_item("CARROT_SEEDS")
                     if (event.key == pygame.K_2 or event.key == pygame.K_KP2) and self.level >= 2:
                         self._buy_item("APPLE_SAPLING")
+                    if event.key == pygame.K_3 or event.key == pygame.K_KP3:
+                        self._buy_item("SPEED_BOOTS")
+                    if event.key == pygame.K_4 or event.key == pygame.K_KP4:
+                        self._buy_item("BIG_BASKET")
 
     def _buy_item(self, item_type: str) -> bool:
         if item_type == "CARROT_SEEDS":
@@ -100,8 +106,8 @@ class Game:
                 self.player.coins -= cost
                 self.player.carrot_seeds = 5
                 self.shop_open = False
-                self.player.state = PlayerState.CARRYING_CARROT
-                self.player.carrying_item = "SEED"
+                if "SEED" not in self.player.items:
+                    self.player.items.append("SEED")
                 return True
         elif item_type == "APPLE_SAPLING":
             cost = constants.APPLE_SAPLING_PRICE
@@ -109,8 +115,22 @@ class Game:
                 self.player.coins -= cost
                 self.player.apple_saplings += 1
                 self.shop_open = False
-                self.player.state = PlayerState.CARRYING_CARROT
-                self.player.carrying_item = "SAPLING"
+                if "SAPLING" not in self.player.items:
+                    self.player.items.append("SAPLING")
+                return True
+        elif item_type == "SPEED_BOOTS":
+            cost = constants.UPGRADE_SPEED_BOOST_PRICE
+            if self.player.coins >= cost:
+                self.player.coins -= cost
+                self.player.speed_boost_timer += constants.UPGRADE_DURATION
+                self.shop_open = False
+                return True
+        elif item_type == "BIG_BASKET":
+            cost = constants.UPGRADE_BASKET_PRICE
+            if self.player.coins >= cost:
+                self.player.coins -= cost
+                self.player.basket_timer += constants.UPGRADE_DURATION
+                self.shop_open = False
                 return True
         return False
 
@@ -131,38 +151,34 @@ class Game:
         
         # Standing at Shop to pick up seeds manually (if needed)
         if abs(self.player.x - constants.STORAGE_X) < 100 and abs(self.player.y - constants.STORAGE_Y) < 100:
-            if self.player.state == PlayerState.EMPTY:
-                if self.player.carrot_seeds > 0:
-                    self.player.state = PlayerState.CARRYING_CARROT
-                    self.player.carrying_item = "SEED"
+            max_cap = 3 if self.player.basket_timer > 0 else 1
+            if len(self.player.items) < max_cap:
+                if self.player.carrot_seeds > 0 and "SEED" not in self.player.items:
+                    self.player.items.append("SEED")
                     return
-                elif self.player.apple_saplings > 0:
-                    self.player.state = PlayerState.CARRYING_CARROT
-                    self.player.carrying_item = "SAPLING"
+                elif self.player.apple_saplings > 0 and "SAPLING" not in self.player.items:
+                    self.player.items.append("SAPLING")
                     return
         
         # Trash interaction
         if abs(self.player.x - constants.TRASH_X) < 100 and abs(self.player.y - constants.TRASH_Y) < 100:
-            if self.player.state != PlayerState.EMPTY:
-                self.player.state = PlayerState.EMPTY
-                self.player.carrying_item = None
+            if self.player.items:
+                self.player.items.pop() # Trash last item
                 return
 
         # 5. Plant (This remains manual with E)
         if self.player.x < constants.FARM_END:
-            if self.player.carrying_item == "SEED" and self.player.y < constants.FARM_MID_Y:
+            if "SEED" in self.player.items and self.player.y < constants.FARM_MID_Y:
                 self.crops.append(Crop(self.player.x, self.player.y))
                 self.player.carrot_seeds -= 1
                 if self.player.carrot_seeds <= 0:
-                    self.player.state = PlayerState.EMPTY
-                    self.player.carrying_item = None
+                    self.player.items.remove("SEED")
                 return
-            elif self.player.carrying_item == "SAPLING" and self.player.y >= constants.FARM_MID_Y:
+            elif "SAPLING" in self.player.items and self.player.y >= constants.FARM_MID_Y:
                 self.apple_trees.append(AppleTree(self.player.x, self.player.y))
                 self.player.apple_saplings -= 1
                 if self.player.apple_saplings <= 0:
-                    self.player.state = PlayerState.EMPTY
-                    self.player.carrying_item = None
+                    self.player.items.remove("SAPLING")
                 return
 
 
@@ -187,66 +203,57 @@ class Game:
             self._handle_automatic_interactions()
 
     def _handle_automatic_interactions(self):
+        # Determine max capacity
+        max_items = 3 if self.player.basket_timer > 0 else 1
+
         # 1. Auto-Harvest Crops
-        if self.player.state == PlayerState.EMPTY:
+        if len(self.player.items) < max_items:
             for crop in self.crops[:]:
                 if crop.state == CropState.MATURE:
                     dist = math.sqrt((self.player.x - crop.x)**2 + (self.player.y - crop.y)**2)
                     if dist < 35:
                         self.crops.remove(crop)
-                        self.player.state = PlayerState.CARRYING_CARROT
-                        self.player.carrying_item = "CARROT"
-                        return
-
+                        self.player.items.append("CARROT")
+                        # No return here, can collect more if space!
+        
         # 2. Auto-Harvest Trees
-        if self.player.state == PlayerState.EMPTY:
+        if len(self.player.items) < max_items:
             for tree in self.apple_trees[:]:
                 if tree.state == "READY" and tree.apples_left > 0:
                     dist = math.sqrt((self.player.x - tree.x)**2 + (self.player.y - tree.y)**2)
                     if dist < 50:
                         tree.harvest()
-                        self.player.state = PlayerState.CARRYING_CARROT
-                        self.player.carrying_item = "APPLE"
+                        self.player.items.append("APPLE")
                         if tree.apples_left == 0:
                             self.apple_trees.remove(tree)
-                        return
-
+        
         # 3. Auto-Collect Poop
-        if self.player.state == PlayerState.EMPTY:
+        if len(self.player.items) < max_items:
             for poop in self.poops[:]:
                 dist = math.sqrt((self.player.x - poop.x)**2 + (self.player.y - poop.y)**2)
                 if dist < 35:
                     self.poops.remove(poop)
-                    self.player.state = PlayerState.CARRYING_CARROT
-                    self.player.carrying_item = "POOP"
-                    return
-
+                    self.player.items.append("POOP")
+        
         # 4. Auto-Sell Poop
-        if self.player.carrying_item == "POOP":
+        if "POOP" in self.player.items:
             if abs(self.player.x - constants.STORAGE_X) < 80 and abs(self.player.y - constants.STORAGE_Y) < 80:
                 self.player.coins += constants.POOP_VALUE
-                self.player.state = PlayerState.EMPTY
-                self.player.carrying_item = None
-                return
+                self.player.items.remove("POOP")
 
         # 5. Auto-Feed Horses
         for horse in self.horses:
             dist = math.sqrt((self.player.x - horse.x)**2 + (self.player.y - horse.y)**2)
             if dist < 65 and horse.state == HorseState.WAITING:
-                if self.player.carrying_item == "CARROT":
-                    if horse.receive_food(FoodType.CARROT):
+                # Try to give items from inventory
+                for item in self.player.items[:]:
+                    f_type = FoodType.CARROT if item == "CARROT" else FoodType.APPLE if item == "APPLE" else None
+                    if f_type and horse.receive_food(f_type):
                         self.score += 10
-                        self.player.state = PlayerState.EMPTY
-                        self.player.carrying_item = None
+                        self.player.items.remove(item)
                         self._check_horse_finished(horse)
-                        return
-                elif self.player.carrying_item == "APPLE":
-                    if horse.receive_food(FoodType.APPLE):
-                        self.score += 10
-                        self.player.state = PlayerState.EMPTY
-                        self.player.carrying_item = None
-                        self._check_horse_finished(horse)
-                        return
+                        # Carry on to feed other items if possible!
+
     def _draw(self):
         # 1. Fill background (Grass)
         for x in range(0, constants.SCREEN_WIDTH, 100):
@@ -274,7 +281,7 @@ class Game:
             
         # Draw Prompts (Dynamic based on proximity)
         if abs(self.player.x - constants.TRASH_X) < 100 and abs(self.player.y - constants.TRASH_Y) < 100:
-            if self.player.carrying_item is not None:
+            if self.player.items:
                 # Position it above the trash bin
                 text_x = constants.TRASH_X - 40
                 text_y = constants.TRASH_Y - 100
@@ -308,6 +315,14 @@ class Game:
             # Shadow
             self.screen.blit(self.font_large.render(msg, True, (0,0,0)), rect.move(3,3))
             self.screen.blit(surf, rect)
+
+        # 6. Active Power-ups (Timers)
+        if self.player.speed_boost_timer > 0:
+            msg = f"HIZ: {int(self.player.speed_boost_timer)}s"
+            self._draw_text(msg, (20, 100), (255, 100, 0), self.font_small)
+        if self.player.basket_timer > 0:
+            msg = f"SEPET: {int(self.player.basket_timer)}s"
+            self._draw_text(msg, (20, 130), (0, 255, 100), self.font_small)
 
         # Version tag
         self._draw_text(self.version, (constants.SCREEN_WIDTH - 60, constants.SCREEN_HEIGHT - 30), (100, 100, 100), self.font_small)
@@ -346,10 +361,15 @@ class Game:
         
         # Draw items relative to popup position
         self._draw_text("PAZAR - SHOP", (overlay_x + 100, overlay_y + 30), (255, 255, 255), self.font_large)
-        self._draw_text("[1] Havuç Tohumu (5 Adet) - 25 Coin", (overlay_x + 50, overlay_y + 110), (255, 255, 255), self.font_small)
+        self._draw_text(f"[1] Havuç Tohumu (5x) - {constants.CARROT_SEED_PRICE * 5}", (overlay_x + 50, overlay_y + 90), (255, 255, 255), self.font_small)
         if self.level >= 2:
-            self._draw_text("[2] Elma Fidanı (1 Adet) - 20 Coin", (overlay_x + 50, overlay_y + 160), (255, 255, 255), self.font_small)
-        self._draw_text("[SPACE] Kapat", (overlay_x + 180, overlay_y + 300), (200, 200, 200), self.font_small)
+            self._draw_text(f"[2] Elma Fidanı (1x) - {constants.APPLE_SAPLING_PRICE}", (overlay_x + 50, overlay_y + 130), (255, 255, 255), self.font_small)
+        
+        # Upgrades
+        self._draw_text(f"[3] Hız Botu (15sn) - {constants.UPGRADE_SPEED_BOOST_PRICE}", (overlay_x + 50, overlay_y + 180), (255, 150, 50), self.font_small)
+        self._draw_text(f"[4] Büyük Sepet (15sn) - {constants.UPGRADE_BASKET_PRICE}", (overlay_x + 50, overlay_y + 220), (50, 255, 150), self.font_small)
+        
+        self._draw_text("[SPACE] Kapat", (overlay_x + 180, overlay_y + 310), (200, 200, 200), self.font_small)
 
     def _draw_interaction_prompts(self):
         # Interaction hints
@@ -359,7 +379,7 @@ class Game:
             prompt = "[SPACE] Marketi Aç"
         
         # Plant hint
-        if self.player.carrying_item in ["SEED", "SAPLING"] and self.player.x < constants.FARM_END:
+        if any(item in self.player.items for item in ["SEED", "SAPLING"]) and self.player.x < constants.FARM_END:
             prompt = "[E] Ek"
 
         if prompt:
