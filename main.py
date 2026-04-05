@@ -244,11 +244,8 @@ class Game:
                 return
 
         # Level up logic...
-        new_lvl = self.level
-        if self.score >= constants.LEVEL_5_THRESHOLD: new_lvl = 5
-        elif self.score >= constants.LEVEL_4_THRESHOLD: new_lvl = 4
-        elif self.score >= constants.LEVEL_3_THRESHOLD: new_lvl = 3
-        elif self.score >= constants.LEVEL_UP_SCORE: new_lvl = 2
+        # Level up logic (Every 50 points)
+        new_lvl = (self.score // 50) + 1
         
         if new_lvl > self.level:
             self.level = new_lvl
