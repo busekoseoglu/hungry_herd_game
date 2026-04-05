@@ -178,6 +178,7 @@ class Game:
                 self.player.basket_timer += constants.UPGRADE_DURATION
                 self.player.basket_capacity = 3
                 self.shop_open = False
+                self.loader.play_sound('buy')
                 return True
         return False
 
@@ -222,16 +223,19 @@ class Game:
                 self.crops.append(Crop(self.player.x, self.player.y, FoodType.CARROT))
                 self.player.carrot_seeds -= 1
                 if self.player.carrot_seeds <= 0: self.player.items.remove("SEED")
+                self.loader.play_sound('plant')
                 return
             elif "WHEAT_SEED" in self.player.items and self.player.y < constants.FARM_MID_Y:
                 self.crops.append(Crop(self.player.x, self.player.y, FoodType.WHEAT))
                 self.player.wheat_seeds -= 1
                 if self.player.wheat_seeds <= 0: self.player.items.remove("WHEAT_SEED")
+                self.loader.play_sound('plant')
                 return
             elif "SAPLING" in self.player.items and self.player.y >= constants.FARM_MID_Y:
                 self.apple_trees.append(AppleTree(self.player.x, self.player.y))
                 self.player.apple_saplings -= 1
                 if self.player.apple_saplings <= 0: self.player.items.remove("SAPLING")
+                self.loader.play_sound('plant')
                 return
 
 
@@ -293,6 +297,7 @@ class Game:
                     self.crops.remove(crop)
                     item_type = "CARROT" if crop.type == FoodType.CARROT else "WHEAT"
                     self.player.items.append(item_type)
+                    self.loader.play_sound('harvest')
         
         # 2. Auto-Harvest Trees
         for tree in self.apple_trees[:]:
@@ -302,6 +307,7 @@ class Game:
                 if dist < 50:
                     tree.harvest()
                     self.player.items.append("APPLE")
+                    self.loader.play_sound('harvest')
                     if tree.apples_left == 0:
                         self.apple_trees.remove(tree)
         
@@ -312,6 +318,7 @@ class Game:
             if dist < 35:
                 self.poops.remove(poop)
                 self.player.items.append("POOP")
+                self.loader.play_sound('poop')
         
         # 4. Auto-Sell Poop
         if "POOP" in self.player.items:
@@ -332,6 +339,7 @@ class Game:
                     
                     if f_type and horse.receive_food(f_type):
                         self.player.items.remove(item)
+                        self.loader.play_sound('feed')
                         self._check_horse_finished(horse)
                         # Carry on to feed other items if possible!
 

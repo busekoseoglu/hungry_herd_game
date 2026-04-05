@@ -13,6 +13,8 @@ class AssetsLoader:
         'wheat_seed', 'wheat'
     ]
     
+    REQUIRED_SOUNDS = ['plant', 'harvest', 'feed', 'buy', 'poop']
+    
     TARGET_SIZES = {
         'player': (36, 44),
         'carrot': (20, 24),
@@ -38,6 +40,13 @@ class AssetsLoader:
     def __init__(self, assets_dir: str):
         self.assets_dir = assets_dir
         self.sprites = {}
+        self.sounds = {}
+        
+        # Initialize mixer
+        try:
+            pygame.mixer.init()
+        except:
+            print("Warning: Audio mixer failed to initialize.")
 
     def load_all(self):
         """Main method to load or generate all assets"""
@@ -65,7 +74,34 @@ class AssetsLoader:
                     except Exception as e:
                         print(f"Failed to save {name}.png: {e}")
 
+        self._load_sounds()
         return self.sprites
+
+    def _load_sounds(self):
+        """Loads sounds from assets/sounds/ folder if it exists"""
+        sound_dir = os.path.join(self.assets_dir, "sounds")
+        if not os.path.exists(sound_dir):
+            return
+
+        for name in self.REQUIRED_SOUNDS:
+            path = os.path.join(sound_dir, f"{name}.wav")
+            # Try .mp3 as fallback
+            if not os.path.exists(path):
+                path = os.path.join(sound_dir, f"{name}.mp3")
+            
+            if os.path.exists(path):
+                try:
+                    self.sounds[name] = pygame.mixer.Sound(path)
+                except Exception as e:
+                    print(f"Failed to load sound {name}: {e}")
+
+    def play_sound(self, name):
+        """Plays a registered sound if loaded"""
+        if name in self.sounds:
+            try:
+                self.sounds[name].play()
+            except:
+                pass
 
     def _load_asset(self, name):
         path = os.path.join(self.assets_dir, f"{name}.png")
