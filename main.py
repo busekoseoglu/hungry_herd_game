@@ -128,7 +128,7 @@ class Game:
 
     def _buy_item(self, item_type: str) -> bool:
         if item_type == "CARROT_SEEDS":
-            cost = constants.CARROT_SEED_PRICE * 5
+            cost = 25 # 5x
             if self.player.coins >= cost and self.player.carrot_seeds == 0:
                 self.player.coins -= cost
                 self.player.carrot_seeds = 5
@@ -136,7 +136,7 @@ class Game:
                 if "SEED" not in self.player.items: self.player.items.append("SEED")
                 return True
         elif item_type == "APPLE_SAPLING":
-            cost = constants.APPLE_SAPLING_PRICE
+            cost = constants.APPLE_SAPLING_PRICE # 30
             if self.player.coins >= cost and self.player.apple_saplings < 2:
                 self.player.coins -= cost
                 self.player.apple_saplings += 1
@@ -145,9 +145,10 @@ class Game:
                 return True
         elif item_type == "WHEAT_SEEDS":
             if self.level < 4: return False
-            cost = constants.WHEAT_SEED_PRICE
-            if self.player.coins >= cost:
+            cost = 25 # 5x
+            if self.player.coins >= cost and self.player.wheat_seeds == 0:
                 self.player.coins -= cost
+                self.player.wheat_seeds = 5
                 self.shop_open = False
                 if "WHEAT_SEED" not in self.player.items: self.player.items.append("WHEAT_SEED")
                 return True
@@ -204,9 +205,9 @@ class Game:
                 elif self.player.apple_saplings > 0 and "SAPLING" not in self.player.items:
                     self.player.items.append("SAPLING")
                     return
-                elif "WHEAT_SEED" in self.player.items: # If we need to re-add to inventory? 
-                    # Wheat seed is handled differently in _buy_item (adds to items)
-                    pass
+                elif self.player.wheat_seeds > 0 and "WHEAT_SEED" not in self.player.items:
+                    self.player.items.append("WHEAT_SEED")
+                    return
         
         # Trash interaction
         if abs(self.player.x - constants.TRASH_X) < 100 and abs(self.player.y - constants.TRASH_Y) < 100:
@@ -223,7 +224,8 @@ class Game:
                 return
             elif "WHEAT_SEED" in self.player.items and self.player.y < constants.FARM_MID_Y:
                 self.crops.append(Crop(self.player.x, self.player.y, FoodType.WHEAT))
-                self.player.items.remove("WHEAT_SEED")
+                self.player.wheat_seeds -= 1
+                if self.player.wheat_seeds <= 0: self.player.items.remove("WHEAT_SEED")
                 return
             elif "SAPLING" in self.player.items and self.player.y >= constants.FARM_MID_Y:
                 self.apple_trees.append(AppleTree(self.player.x, self.player.y))
@@ -386,6 +388,10 @@ class Game:
             sap_text = f"FİDAN: {self.player.apple_saplings}"
             self._draw_text(sap_text, (150, constants.SCREEN_HEIGHT - 40), constants.COLOR_BLACK, self.font_small)
 
+        if self.level >= 4:
+            wheat_text = f"BUĞDAY: {self.player.wheat_seeds}"
+            self._draw_text(wheat_text, (280, constants.SCREEN_HEIGHT - 40), constants.COLOR_BLACK, self.font_small)
+
         if self.level_up_timer > 0:
             msg = f"LEVEL {self.level}!"
             surf = self.font_large.render(msg, True, (255, 100, 0))
@@ -466,11 +472,11 @@ class Game:
         self._draw_text("PAZAR - SHOP", (overlay_x + 150, overlay_y + 30), (255, 255, 255), self.font_large)
         
         # 1-2 Items
-        self._draw_text(f"[1] Havuç Tohumu (5x) - {constants.CARROT_SEED_PRICE * 5}", (overlay_x + 50, overlay_y + 90), (255, 255, 255), self.font_small)
+        self._draw_text(f"[1] Havuç Tohumu (5x) - 25", (overlay_x + 50, overlay_y + 90), (255, 255, 255), self.font_small)
         if self.level >= 2:
-            self._draw_text(f"[2] Elma Fidanı (1x) - {constants.APPLE_SAPLING_PRICE}", (overlay_x + 50, overlay_y + 130), (255, 255, 255), self.font_small)
+            self._draw_text(f"[2] Elma Fidanı (1x) - 30", (overlay_x + 50, overlay_y + 130), (255, 255, 255), self.font_small)
         if self.level >= 4:
-            self._draw_text(f"[5] Buğday Tohumu (3x) - {constants.WHEAT_SEED_PRICE}", (overlay_x + 50, overlay_y + 170), (255, 255, 0), self.font_small)
+            self._draw_text(f"[5] Buğday Tohumu (5x) - 25", (overlay_x + 50, overlay_y + 170), (255, 255, 0), self.font_small)
         
         # Upgrades
         self._draw_text("--- GELİŞTİRMELER ---", (overlay_x + 50, overlay_y + 210), (150, 150, 150), self.font_small)

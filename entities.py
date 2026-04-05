@@ -27,7 +27,7 @@ class Crop:
         self.type = crop_type
         self.state = CropState.SEED
         self.timer = 0.0
-        self.growth_time = constants.GROWTH_TIME_CARROT
+        self.growth_time = constants.GROWTH_TIME_WHEAT if crop_type == FoodType.WHEAT else constants.GROWTH_TIME_CARROT
         
     def update(self, dt):
         if self.state == CropState.SEED:
@@ -226,6 +226,7 @@ class Player:
         self.coins = constants.INITIAL_COINS
         self.carrot_seeds = 0
         self.apple_saplings = 0
+        self.wheat_seeds = 0
         
         # Power-up timers
         self.speed_boost_timer = 0.0
@@ -266,8 +267,10 @@ class Player:
         # Draw all items in inventory
         for i, item in enumerate(self.items):
             item_spr_name = item.lower()
+            item_spr_name = item.lower()
             if item == "SEED": item_spr_name = 'crop_seed'
             elif item == "SAPLING": item_spr_name = 'agac_1'
+            elif item == "WHEAT_SEED": item_spr_name = 'wheat_seed'
             
             item_spr = sprites.get(item_spr_name)
             if item_spr:
