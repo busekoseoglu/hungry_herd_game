@@ -5,7 +5,7 @@ import constants
 
 class AssetsLoader:
     """Handles asset loading and procedural generation"""
-    VERSION = "1.3.1"
+    VERSION = "1.4.0"
     
     REQUIRED_ASSETS = [
         'horse', 'player', 'apple', 'apple_pale', 'carrot', 'carrot_pale',
@@ -38,9 +38,7 @@ class AssetsLoader:
 
     def __init__(self, assets_dir: str):
         self.assets_dir = assets_dir
-        self.sound_dir = os.path.join(self.assets_dir, "sound")
         self.sprites = {}
-        self.music_loaded = False
 
     def load_all(self):
         """Main method to load or generate all assets"""
@@ -67,32 +65,7 @@ class AssetsLoader:
                         pygame.image.save(self.sprites[name], path)
                     except Exception as e:
                         print(f"Failed to save {name}.png: {e}")
-
-        self._load_music()
         return self.sprites
-
-    def _load_music(self):
-        """Specifically loads the background.wav for v1.3.1"""
-        bg_path = os.path.join(self.sound_dir, "background.wav")
-        if os.path.exists(bg_path):
-            try:
-                if not pygame.mixer.get_init():
-                    pygame.mixer.init(44100, -16, 2, 512)
-                pygame.mixer.music.load(bg_path)
-                self.music_loaded = True
-                print("DEBUG: Background music loaded.")
-            except Exception as e:
-                print(f"DEBUG: Music load error: {e}")
-
-    def play_bg_music(self):
-        """Starts looping BGM after user interaction"""
-        if self.music_loaded:
-            try:
-                pygame.mixer.music.set_volume(0.6) # Gentle volume
-                pygame.mixer.music.play(-1)
-                print("DEBUG: BGM Started.")
-            except Exception as e:
-                print(f"DEBUG: BGM Play error: {e}")
 
  
     def _load_asset(self, name):

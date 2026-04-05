@@ -19,8 +19,9 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
-        self.version = "v1.3.2"
-        self.game_state = "START"
+        self.version = "v1.4.0"
+        self.game_state = "PLAYING"
+        self.mixer_initialized = False # We stay silent
         
         # Assets
         self.loader = AssetsLoader(os.path.join(os.getcwd(), "assets"))
@@ -55,7 +56,7 @@ class Game:
         self.notification_msg = ""
         self.unlocked_notifs = {3: False, 5: False}
         self.game_over = False
-        self.game_over = False
+        self.game_state = "PLAYING"
         
         # Reset Entities
         self.player = Player()
@@ -98,45 +99,36 @@ class Game:
                 pygame.quit()
                 sys.exit()
             
-            if event.type == pygame.MOUSEBUTTONDOWN and self.game_state == "START":
-                self.loader.play_bg_music()
-                self.game_state = "PLAYING"
-
             if event.type == pygame.KEYDOWN:
-                if self.game_state == "START":
-                    if event.key == pygame.K_SPACE:
-                        self.loader.play_bg_music()
-                        self.game_state = "PLAYING"
-                else: 
-                    if event.key == pygame.K_SPACE:
-                        if self.game_over:
-                            self.reset_game()
+                if event.key == pygame.K_SPACE:
+                    if self.game_over:
+                        self.reset_game()
+                    else:
+                        # Toggle Shop or Trash
+                        if abs(self.player.x - constants.STORAGE_X) < 120 and abs(self.player.y - constants.STORAGE_Y) < 120:
+                            self.shop_open = not self.shop_open
+                        elif abs(self.player.x - constants.TRASH_X) < 120 and abs(self.player.y - constants.TRASH_Y) < 120:
+                            self._handle_interaction()
                         else:
-                            # Toggle Shop or Trash
-                            if abs(self.player.x - constants.STORAGE_X) < 120 and abs(self.player.y - constants.STORAGE_Y) < 120:
-                                self.shop_open = not self.shop_open
-                            elif abs(self.player.x - constants.TRASH_X) < 120 and abs(self.player.y - constants.TRASH_Y) < 120:
-                                self._handle_interaction()
-                            else:
-                                self.shop_open = False
-                    
-                    if event.key == pygame.K_e:
-                        self._handle_interaction()
+                            self.shop_open = False
+                
+                if event.key == pygame.K_e:
+                    self._handle_interaction()
 
-                    # Shop keyboard shortcuts
-                    if self.shop_open:
-                        if event.key == pygame.K_1 or event.key == pygame.K_KP1:
-                            self._buy_item("CARROT_SEEDS")
-                        if (event.key == pygame.K_2 or event.key == pygame.K_KP2) and self.level >= 2:
-                            self._buy_item("APPLE_SAPLING")
-                        if (event.key == pygame.K_3 or event.key == pygame.K_KP3) and self.level >= 3:
-                            self._buy_item("SPEED_BOOTS")
-                        if (event.key == pygame.K_4 or event.key == pygame.K_KP4) and self.level >= 3:
-                            self._buy_item("MEDIUM_BASKET")
-                        if (event.key == pygame.K_5 or event.key == pygame.K_KP5) and self.level >= 4:
-                            self._buy_item("WHEAT_SEEDS")
-                        if (event.key == pygame.K_6 or event.key == pygame.K_KP6) and self.level >= 5:
-                            self._buy_item("BIG_BASKET")
+                # Shop keyboard shortcuts
+                if self.shop_open:
+                    if event.key == pygame.K_1 or event.key == pygame.K_KP1:
+                        self._buy_item("CARROT_SEEDS")
+                    if (event.key == pygame.K_2 or event.key == pygame.K_KP2) and self.level >= 2:
+                        self._buy_item("APPLE_SAPLING")
+                    if (event.key == pygame.K_3 or event.key == pygame.K_KP3) and self.level >= 3:
+                        self._buy_item("SPEED_BOOTS")
+                    if (event.key == pygame.K_4 or event.key == pygame.K_KP4) and self.level >= 3:
+                        self._buy_item("MEDIUM_BASKET")
+                    if (event.key == pygame.K_5 or event.key == pygame.K_KP5) and self.level >= 4:
+                        self._buy_item("WHEAT_SEEDS")
+                    if (event.key == pygame.K_6 or event.key == pygame.K_KP6) and self.level >= 5:
+                        self._buy_item("BIG_BASKET")
 
     def _buy_item(self, item_type: str) -> bool:
         if item_type == "CARROT_SEEDS":
@@ -349,10 +341,6 @@ class Game:
         # 0. Clear screen
         self.screen.fill((0, 0, 0))
 
-        if self.game_state == "START":
-            self._draw_start_screen()
-            return
-
         # 1. Fill background (Grass)
         for x in range(0, constants.SCREEN_WIDTH, 100):
             for y in range(0, constants.SCREEN_HEIGHT, 100):
@@ -545,87 +533,13 @@ class Game:
         if prompt:
             self._draw_centered_text(prompt, self.player.y - 70, constants.COLOR_BLACK, self.font_small)
 
-    def _draw_start_screen(self):
-        # Ultra-Premium Start Screen v1.3.2
-        # 1. Background
-        bg = self.sprites.get('bg_horses')
-        if bg:
-            self.screen.blit(bg, (0, 0))
-            
-        # 2. Dynamic Overlay (Dark & Atmospheric)
-        overlay = pygame.Surface((constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT), pygame.SRCALPHA)
-        # Deep forest green/black gradient feel
-        overlay.fill((5, 15, 5, 210)) 
-        self.screen.blit(overlay, (0, 0))
-        
-        # 3. Decorative Elements (Floating leaves or grass)
-        time_ms = pygame.time.get_ticks()
-        for i in range(5):
-            offset = math.sin((time_ms + i * 1000) / 1000) * 10
-            x = 100 + i * 250 + offset
-            y = constants.SCREEN_HEIGHT - 100 + offset
-            grass = self.sprites.get('bg_grass')
-            if grass:
-                self.screen.blit(grass, (x, y))
-
-        # 4. Logo/Title with Glowing Shadow
-        title_y = constants.SCREEN_HEIGHT // 2 - 130
-        pulse = (math.sin(time_ms / 400) + 1) / 2
-        glow_size = int(2 + pulse * 4)
-        
-        # Glow Layer
-        glow_color = (100, 255, 100, 50)
-        glow_surf = self.font_large.render("HUNGRY HERD", True, (0, 50, 0))
-        for ox in range(-glow_size, glow_size+1, 2):
-            for oy in range(-glow_size, glow_size+1, 2):
-                self.screen.blit(glow_surf, (constants.SCREEN_WIDTH // 2 - glow_surf.get_width() // 2 + ox, title_y + oy))
-        
-        # Main Title
-        self._draw_centered_text("HUNGRY HERD", title_y, (255, 255, 255), self.font_large)
-        
-        # Subtitle
-        self._draw_centered_text("Doğanın Kalbinde Çiftliğini Kur", title_y + 60, (200, 255, 200), self.font_small)
-
-        # 5. Pulsing Button Interaction
-        btn_alpha = int(160 + pulse * 95)
-        prompt_y = title_y + 190
-        
-        # Button Shadow/Glow
-        btn_w, btn_h = 440, 90
-        btn_rect = pygame.Rect((constants.SCREEN_WIDTH - btn_w) // 2, prompt_y - 25, btn_w, btn_h)
-        
-        # Rounded Button Surface
-        btn_surf = pygame.Surface((btn_w, btn_h), pygame.SRCALPHA)
-        # Background of button
-        pygame.draw.rect(btn_surf, (255, 255, 255, 20), (0, 0, btn_w, btn_h), border_radius=25)
-        # Animated Border
-        border_color = (255, 255, 255, btn_alpha)
-        pygame.draw.rect(btn_surf, border_color, (0, 0, btn_w, btn_h), width=3, border_radius=25)
-        self.screen.blit(btn_surf, btn_rect.topleft)
-
-        # Prompt Text
-        text_color = (255, 255, 255, btn_alpha)
-        text_surf = self.font_small.render("OYUNU BAŞLATMAK İÇİN TIKLA", True, text_color)
-        text_rect = text_surf.get_rect(center=btn_rect.center)
-        self.screen.blit(text_surf, text_rect)
-        
-        # Audio Unmute Hint
-        hint_alpha = int(120 + pulse * 60)
-        self._draw_centered_text("(Müzik Bu Tıklama ile Başlayacaktır)", prompt_y + 85, (200, 200, 200, hint_alpha), self.font_small)
-        
-        # Version Tag
-        self._draw_text(self.version, (30, constants.SCREEN_HEIGHT - 40), (100, 120, 100), self.font_small)
-
     def _draw_text(self, text, pos, color, font):
-        if len(color) == 4: # RGBA support for some calls
+        if isinstance(color, tuple) and len(color) == 4: # RGBA support for some calls
             surf = font.render(text, True, color[:3])
             surf.set_alpha(color[3])
         else:
             surf = font.render(text, True, color)
         self.screen.blit(surf, pos)
-
-        # Version
-        self._draw_text(self.version, (20, constants.SCREEN_HEIGHT - 35), (120, 120, 120), self.font_small)
 
 if __name__ == "__main__":
     game = Game()
