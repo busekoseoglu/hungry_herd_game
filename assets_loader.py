@@ -84,10 +84,10 @@ class AssetsLoader:
             return
 
         for name in self.REQUIRED_SOUNDS:
+            # Check for .wav (high fidelity) or .ogg (web optimized)
             path = os.path.join(sound_dir, f"{name}.wav")
-            # Try .mp3 as fallback
             if not os.path.exists(path):
-                path = os.path.join(sound_dir, f"{name}.mp3")
+                path = os.path.join(sound_dir, f"{name}.ogg")
             
             if os.path.exists(path):
                 try:
