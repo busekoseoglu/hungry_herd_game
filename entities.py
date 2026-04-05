@@ -145,7 +145,7 @@ class Horse:
         if self.state == HorseState.WAITING:
             self.remaining_time -= dt
             if self.remaining_time <= 0:
-                self.state = HorseState.SICK
+                self.state = HorseState.DEAD
         return None
 
     def receive_food(self, food_type: FoodType) -> bool:

@@ -42,7 +42,24 @@ class Game:
         
         # Shop
         self.shop_open = False
+        self.game_over = False
         
+        self.reset_game()
+    
+    def reset_game(self):
+        self.level = 1
+        self.score = 0
+        self.level_up_timer = 0.0
+        self.notification_timer = 0.0
+        self.notification_msg = ""
+        self.unlocked_notifs = {3: False, 5: False}
+        self.game_over = False
+        
+        # Reset Entities
+        self.player = Player()
+        self.crops = []
+        self.apple_trees = []
+        self.poops = []
         self._spawn_initial_horses()
 
     def _spawn_initial_horses(self):
@@ -80,13 +97,16 @@ class Game:
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    # Toggle Shop or Trash
-                    if abs(self.player.x - constants.STORAGE_X) < 120 and abs(self.player.y - constants.STORAGE_Y) < 120:
-                        self.shop_open = not self.shop_open
-                    elif abs(self.player.x - constants.TRASH_X) < 120 and abs(self.player.y - constants.TRASH_Y) < 120:
-                        self._handle_interaction()
+                    if self.game_over:
+                        self.reset_game()
                     else:
-                        self.shop_open = False
+                        # Toggle Shop or Trash
+                        if abs(self.player.x - constants.STORAGE_X) < 120 and abs(self.player.y - constants.STORAGE_Y) < 120:
+                            self.shop_open = not self.shop_open
+                        elif abs(self.player.x - constants.TRASH_X) < 120 and abs(self.player.y - constants.TRASH_Y) < 120:
+                            self._handle_interaction()
+                        else:
+                            self.shop_open = False
                 
                 if event.key == pygame.K_e:
                     self._handle_interaction()
@@ -213,7 +233,15 @@ class Game:
 
 
     def _update(self, dt):
-        # Level up logic (Dynamic thresholds)
+        if self.game_over: return
+        
+        # Game Over Check
+        for h in self.horses:
+            if h.state == HorseState.DEAD:
+                self.game_over = True
+                return
+
+        # Level up logic...
         new_lvl = self.level
         if self.score >= constants.LEVEL_5_THRESHOLD: new_lvl = 5
         elif self.score >= constants.LEVEL_4_THRESHOLD: new_lvl = 4
@@ -229,12 +257,12 @@ class Game:
             
             # Unlock Notifications
             if self.level == 3 and not self.unlocked_notifs[3]:
-                self.notification_msg = "YENİ GELİŞTİRMELER AÇILDI! Marketi ziyaret et."
-                self.notification_timer = 5.0
+                self.notification_msg = "✨ YENİ GELİŞTİRMELERİN KİLİDİ AÇILDI! ✨"
+                self.notification_timer = 6.0
                 self.unlocked_notifs[3] = True
             elif self.level == 5 and not self.unlocked_notifs[5]:
-                self.notification_msg = "BÜYÜK SEPET ARTIK ALINABİLİR! Kapasite: 3"
-                self.notification_timer = 5.0
+                self.notification_msg = "🌟 BÜYÜK SEPET ARTIK KULANILABİLİR! 🌟"
+                self.notification_timer = 6.0
                 self.unlocked_notifs[5] = True
 
         if self.notification_timer > 0:
@@ -366,34 +394,31 @@ class Game:
             self.screen.blit(self.font_large.render(msg, True, (0,0,0)), rect.move(3,3))
             self.screen.blit(surf, rect)
 
-        # 5.5 Notification Overlay
         if self.notification_timer > 0:
             msg = self.notification_msg
-            # Semi-transparent overlay box
-            notif_w, notif_h = 500, 50
+            # Aesthetic Notification Box
+            notif_w, notif_h = 550, 60
             overlay = pygame.Surface((notif_w, notif_h), pygame.SRCALPHA)
-            pygame.draw.rect(overlay, (0, 0, 0, 180), (0, 0, notif_w, notif_h), border_radius=15)
-            # Center of screen horizontally
+            # Gradient-ish background (darker at edges)
+            pygame.draw.rect(overlay, (20, 20, 30, 230), (0, 0, notif_w, notif_h), border_radius=15)
+            
             notif_x = (constants.SCREEN_WIDTH - notif_w) // 2
-            notif_y = 150 # Below stats
+            notif_y = 150
             self.screen.blit(overlay, (notif_x, notif_y))
-            pygame.draw.rect(self.screen, (255, 200, 0), (notif_x, notif_y, notif_w, notif_h), width=2, border_radius=15)
-            self._draw_centered_text(msg, notif_y + 12, (255, 255, 255), self.font_small)
+            # Gold Border
+            pygame.draw.rect(self.screen, (255, 215, 0), (notif_x, notif_y, notif_w, notif_h), width=3, border_radius=15)
+            
+            # Text with subtle shadow
+            shadow = self.font_small.render(msg, True, (0, 0, 0))
+            text = self.font_small.render(msg, True, (255, 255, 255))
+            tx = notif_x + (notif_w - text.get_width()) // 2
+            ty = notif_y + (notif_h - text.get_height()) // 2
+            self.screen.blit(shadow, (tx + 2, ty + 2))
+            self.screen.blit(text, (tx, ty))
 
-        # 6. Active Power-ups (Timers) - Top Center below Level
-        timer_y = 115
-        if self.player.speed_boost_timer > 0:
-            msg = f"HIZ: {int(self.player.speed_boost_timer)}s"
-            self._draw_centered_text(msg, timer_y, (255, 100, 0), self.font_small)
-            timer_y += 25
-        if self.player.basket_timer > 0:
-            msg = f"SEPET: {int(self.player.basket_timer)}s"
-            self._draw_centered_text(msg, timer_y, (0, 255, 100), self.font_small)
-
-        # Version tag
-        self._draw_text(self.version, (constants.SCREEN_WIDTH - 60, constants.SCREEN_HEIGHT - 30), (100, 100, 100), self.font_small)
-
-        if self.shop_open:
+        if self.game_over:
+            self._draw_game_over()
+        elif self.shop_open:
             self._draw_shop_popup()
             
         self._draw_interaction_prompts()
@@ -454,6 +479,20 @@ class Game:
                 self._draw_text("[!] Büyük Sepet Lvl 5'te", (overlay_x + 50, overlay_y + 320), (100, 100, 100), self.font_small)
 
         self._draw_text("[SPACE] Kapat", (overlay_x + 180, overlay_y + 380), (200, 200, 200), self.font_small)
+
+    def _draw_game_over(self):
+        w, h = 600, 300
+        overlay_x = (constants.SCREEN_WIDTH - w) // 2
+        overlay_y = (constants.SCREEN_HEIGHT - h) // 2
+        
+        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.rect(overlay, (0, 0, 0, 220), (0, 0, w, h), border_radius=30)
+        self.screen.blit(overlay, (overlay_x, overlay_y))
+        pygame.draw.rect(self.screen, (255, 50, 50), (overlay_x, overlay_y, w, h), width=4, border_radius=30)
+        
+        self._draw_centered_text("OYUN BİTTİ", overlay_y + 60, (255, 50, 50), self.font_large)
+        self._draw_centered_text(f"Toplam Skor: {self.score}", overlay_y + 130, (255, 255, 255), self.font_small)
+        self._draw_centered_text("Yeniden Başlamak İçin SPACE'e Bas", overlay_y + 200, (200, 200, 200), self.font_small)
 
     def _draw_interaction_prompts(self):
         # Interaction hints
