@@ -19,7 +19,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
-        self.version = "v1.0.9"
+        self.version = "v1.1.0"
         
         # Assets
         self.loader = AssetsLoader(os.path.join(os.getcwd(), "assets"))
@@ -35,7 +35,10 @@ class Game:
         # Level system
         self.level = 1
         self.score = 0
-        self.level_up_timer = 0.0 # Message display timer
+        self.level_up_timer = 0.0 # Legacy level up msg
+        self.notification_timer = 0.0
+        self.notification_msg = ""
+        self.unlocked_notifs = {3: False, 5: False}
         
         # Shop
         self.shop_open = False
@@ -47,7 +50,7 @@ class Game:
         right_center_x = constants.HORSES_START + (constants.SCREEN_WIDTH - constants.HORSES_START) // 2
         self.horses = []
         for i in range(3):
-            h = Horse(i, self.level, can_have_three=(i == 0))
+            h = Horse(i, self.level)
             h.x = right_center_x
             h.y = 180 + i * 200 # Balanced vertical spacing
             self.horses.append(h)
@@ -94,9 +97,13 @@ class Game:
                         self._buy_item("CARROT_SEEDS")
                     if (event.key == pygame.K_2 or event.key == pygame.K_KP2) and self.level >= 2:
                         self._buy_item("APPLE_SAPLING")
-                    if (event.key == pygame.K_3 or event.key == pygame.K_KP3) and self.score >= 100:
+                    if (event.key == pygame.K_3 or event.key == pygame.K_KP3) and self.level >= 3:
                         self._buy_item("SPEED_BOOTS")
-                    if (event.key == pygame.K_4 or event.key == pygame.K_KP4) and self.score >= 100:
+                    if (event.key == pygame.K_4 or event.key == pygame.K_KP4) and self.level >= 3:
+                        self._buy_item("MEDIUM_BASKET")
+                    if (event.key == pygame.K_5 or event.key == pygame.K_KP5) and self.level >= 4:
+                        self._buy_item("WHEAT_SEEDS")
+                    if (event.key == pygame.K_6 or event.key == pygame.K_KP6) and self.level >= 5:
                         self._buy_item("BIG_BASKET")
 
     def _buy_item(self, item_type: str) -> bool:
@@ -106,8 +113,7 @@ class Game:
                 self.player.coins -= cost
                 self.player.carrot_seeds = 5
                 self.shop_open = False
-                if "SEED" not in self.player.items:
-                    self.player.items.append("SEED")
+                if "SEED" not in self.player.items: self.player.items.append("SEED")
                 return True
         elif item_type == "APPLE_SAPLING":
             cost = constants.APPLE_SAPLING_PRICE
@@ -115,45 +121,62 @@ class Game:
                 self.player.coins -= cost
                 self.player.apple_saplings += 1
                 self.shop_open = False
-                if "SAPLING" not in self.player.items:
-                    self.player.items.append("SAPLING")
+                if "SAPLING" not in self.player.items: self.player.items.append("SAPLING")
                 return True
-        elif item_type == "SPEED_BOOTS":
-            if self.score < 100: return False
-            cost = constants.UPGRADE_SPEED_BOOST_PRICE
+        elif item_type == "WHEAT_SEEDS":
+            if self.level < 4: return False
+            cost = constants.WHEAT_SEED_PRICE
             if self.player.coins >= cost:
                 self.player.coins -= cost
-                self.player.speed_boost_timer += constants.UPGRADE_DURATION
+                self.shop_open = False
+                if "WHEAT_SEED" not in self.player.items: self.player.items.append("WHEAT_SEED")
+                return True
+        elif item_type == "SPEED_BOOTS":
+            if self.level < 3: return False
+            cost = constants.BOOTS_BASE_PRICE + (self.level - 3) * constants.BOOTS_PRICE_STEP
+            duration = constants.BOOTS_BASE_DURATION + (self.level - 3) * constants.BOOTS_DURATION_STEP
+            if self.player.coins >= cost:
+                self.player.coins -= cost
+                self.player.speed_boost_timer += duration
                 self.shop_open = False
                 return True
-        elif item_type == "BIG_BASKET":
-            if self.score < 100: return False
-            cost = constants.UPGRADE_BASKET_PRICE
+        elif item_type == "MEDIUM_BASKET":
+            if self.level < 3: return False
+            cost = constants.UPGRADE_BASKET_2_PRICE
             if self.player.coins >= cost:
                 self.player.coins -= cost
                 self.player.basket_timer += constants.UPGRADE_DURATION
+                self.player.basket_capacity = 2
+                self.shop_open = False
+                return True
+        elif item_type == "BIG_BASKET":
+            if self.level < 5: return False
+            cost = constants.UPGRADE_BASKET_3_PRICE
+            if self.player.coins >= cost:
+                self.player.coins -= cost
+                self.player.basket_timer += constants.UPGRADE_DURATION
+                self.player.basket_capacity = 3
                 self.shop_open = False
                 return True
         return False
 
     def _check_horse_finished(self, horse: Horse):
         if horse.is_finished():
-            # Poop chance - Spawn BEHIND horse (further right: +100)
-            # Poop logic: Level 1: Guaranteed every 2nd feeding. Level 2+: Guaranteed every feeding.
-            should_spawn = (self.level >= 2) or (horse.feedings_count % 2 == 0)
+            # Poop logic: Level 1 (Every 2nd), Level 2+ (Guaranteed)
+            # horse.feedings_count starts at 0 or 1? Entity init sets 0, reset increments.
+            should_spawn = (self.level >= 2) or (horse.feedings_count % 2 == 1)
             if should_spawn:
                 self.poops.append(Poop(horse.x + 100, horse.y + 10))
             
-            # Reset horse: only one horse can have 3 items at a time
-            triples = sum(1 for h in self.horses if len(h.wanted_items) == 3 and h != horse)
-            horse.reset(self.level, (triples == 0))
+            # Reset horse to the current level parameters
+            horse.reset(self.level)
 
     def _handle_interaction(self):
         if self.shop_open: return
         
-        # Standing at Shop to pick up seeds manually (if needed)
+        # Standing at Shop to pick up items manually
         if abs(self.player.x - constants.STORAGE_X) < 100 and abs(self.player.y - constants.STORAGE_Y) < 100:
-            max_cap = 3 if self.player.basket_timer > 0 else 1
+            max_cap = self.player.basket_capacity if self.player.basket_timer > 0 else 1
             if len(self.player.items) < max_cap:
                 if self.player.carrot_seeds > 0 and "SEED" not in self.player.items:
                     self.player.items.append("SEED")
@@ -161,40 +184,65 @@ class Game:
                 elif self.player.apple_saplings > 0 and "SAPLING" not in self.player.items:
                     self.player.items.append("SAPLING")
                     return
+                elif "WHEAT_SEED" in self.player.items: # If we need to re-add to inventory? 
+                    # Wheat seed is handled differently in _buy_item (adds to items)
+                    pass
         
         # Trash interaction
         if abs(self.player.x - constants.TRASH_X) < 100 and abs(self.player.y - constants.TRASH_Y) < 100:
             if self.player.items:
-                self.player.items.pop() # Trash last item
+                self.player.items.pop()
                 return
 
-        # 5. Plant (This remains manual with E)
+        # 5. Plant (E)
         if self.player.x < constants.FARM_END:
             if "SEED" in self.player.items and self.player.y < constants.FARM_MID_Y:
-                self.crops.append(Crop(self.player.x, self.player.y))
+                self.crops.append(Crop(self.player.x, self.player.y, FoodType.CARROT))
                 self.player.carrot_seeds -= 1
-                if self.player.carrot_seeds <= 0:
-                    self.player.items.remove("SEED")
+                if self.player.carrot_seeds <= 0: self.player.items.remove("SEED")
+                return
+            elif "WHEAT_SEED" in self.player.items and self.player.y < constants.FARM_MID_Y:
+                self.crops.append(Crop(self.player.x, self.player.y, FoodType.WHEAT))
+                self.player.items.remove("WHEAT_SEED")
                 return
             elif "SAPLING" in self.player.items and self.player.y >= constants.FARM_MID_Y:
                 self.apple_trees.append(AppleTree(self.player.x, self.player.y))
                 self.player.apple_saplings -= 1
-                if self.player.apple_saplings <= 0:
-                    self.player.items.remove("SAPLING")
+                if self.player.apple_saplings <= 0: self.player.items.remove("SAPLING")
                 return
 
 
     def _update(self, dt):
+        # Level up logic (Dynamic thresholds)
+        new_lvl = self.level
+        if self.score >= constants.LEVEL_5_THRESHOLD: new_lvl = 5
+        elif self.score >= constants.LEVEL_4_THRESHOLD: new_lvl = 4
+        elif self.score >= constants.LEVEL_3_THRESHOLD: new_lvl = 3
+        elif self.score >= constants.LEVEL_UP_SCORE: new_lvl = 2
+        
+        if new_lvl > self.level:
+            self.level = new_lvl
+            self.player.coins += 50
+            # Reset horses to adapt to new level parameters
+            for h in self.horses:
+                h.reset(self.level)
+            
+            # Unlock Notifications
+            if self.level == 3 and not self.unlocked_notifs[3]:
+                self.notification_msg = "YENİ GELİŞTİRMELER AÇILDI! Marketi ziyaret et."
+                self.notification_timer = 5.0
+                self.unlocked_notifs[3] = True
+            elif self.level == 5 and not self.unlocked_notifs[5]:
+                self.notification_msg = "BÜYÜK SEPET ARTIK ALINABİLİR! Kapasite: 3"
+                self.notification_timer = 5.0
+                self.unlocked_notifs[5] = True
+
+        if self.notification_timer > 0:
+            self.notification_timer -= dt
+
         if self.level_up_timer > 0:
             self.level_up_timer -= dt
             
-        # Global Level Up Check
-        if self.score >= constants.LEVEL_UP_SCORE and self.level == 1:
-            self.level = 2
-            self.level_up_timer = 3.0
-            for i, horse in enumerate(self.horses):
-                horse.reset(self.level, can_have_three=(i == 0))
-
         self.player.move(pygame.key.get_pressed(), dt)
         for crop in self.crops: crop.update(dt)
         for tree in self.apple_trees: tree.update(dt)
@@ -206,7 +254,7 @@ class Game:
 
     def _handle_automatic_interactions(self):
         # Determine max capacity
-        max_items = 3 if self.player.basket_timer > 0 else 1
+        max_items = self.player.basket_capacity if self.player.basket_timer > 0 else 1
 
         # 1. Auto-Harvest Crops
         for crop in self.crops[:]:
@@ -215,7 +263,8 @@ class Game:
                 dist = math.sqrt((self.player.x - crop.x)**2 + (self.player.y - crop.y)**2)
                 if dist < 35:
                     self.crops.remove(crop)
-                    self.player.items.append("CARROT")
+                    item_type = "CARROT" if crop.type == FoodType.CARROT else "WHEAT"
+                    self.player.items.append(item_type)
         
         # 2. Auto-Harvest Trees
         for tree in self.apple_trees[:]:
@@ -317,6 +366,20 @@ class Game:
             self.screen.blit(self.font_large.render(msg, True, (0,0,0)), rect.move(3,3))
             self.screen.blit(surf, rect)
 
+        # 5.5 Notification Overlay
+        if self.notification_timer > 0:
+            msg = self.notification_msg
+            # Semi-transparent overlay box
+            notif_w, notif_h = 500, 50
+            overlay = pygame.Surface((notif_w, notif_h), pygame.SRCALPHA)
+            pygame.draw.rect(overlay, (0, 0, 0, 180), (0, 0, notif_w, notif_h), border_radius=15)
+            # Center of screen horizontally
+            notif_x = (constants.SCREEN_WIDTH - notif_w) // 2
+            notif_y = 150 # Below stats
+            self.screen.blit(overlay, (notif_x, notif_y))
+            pygame.draw.rect(self.screen, (255, 200, 0), (notif_x, notif_y, notif_w, notif_h), width=2, border_radius=15)
+            self._draw_centered_text(msg, notif_y + 12, (255, 255, 255), self.font_small)
+
         # 6. Active Power-ups (Timers) - Top Center below Level
         timer_y = 115
         if self.player.speed_boost_timer > 0:
@@ -354,7 +417,7 @@ class Game:
         self.screen.blit(title_surf, t_rect)
 
     def _draw_shop_popup(self):
-        w, h = 500, 350
+        w, h = 500, 420
         overlay_x = (constants.SCREEN_WIDTH - w) // 2
         overlay_y = (constants.SCREEN_HEIGHT - h) // 2
         
@@ -362,20 +425,35 @@ class Game:
         pygame.draw.rect(overlay, (0, 0, 0, 220), (0, 0, w, h), border_radius=25)
         self.screen.blit(overlay, (overlay_x, overlay_y))
         
-        # Draw items relative to popup position
-        self._draw_text("PAZAR - SHOP", (overlay_x + 100, overlay_y + 30), (255, 255, 255), self.font_large)
+        self._draw_text("PAZAR - SHOP", (overlay_x + 150, overlay_y + 30), (255, 255, 255), self.font_large)
+        
+        # 1-2 Items
         self._draw_text(f"[1] Havuç Tohumu (5x) - {constants.CARROT_SEED_PRICE * 5}", (overlay_x + 50, overlay_y + 90), (255, 255, 255), self.font_small)
         if self.level >= 2:
             self._draw_text(f"[2] Elma Fidanı (1x) - {constants.APPLE_SAPLING_PRICE}", (overlay_x + 50, overlay_y + 130), (255, 255, 255), self.font_small)
+        if self.level >= 4:
+            self._draw_text(f"[5] Buğday Tohumu (3x) - {constants.WHEAT_SEED_PRICE}", (overlay_x + 50, overlay_y + 170), (255, 255, 0), self.font_small)
         
         # Upgrades
-        if self.score < 100:
-            self._draw_text("[!] Upgradeler 100 Puanda Açılır", (overlay_x + 50, overlay_y + 180), (255, 100, 100), self.font_small)
+        self._draw_text("--- GELİŞTİRMELER ---", (overlay_x + 50, overlay_y + 210), (150, 150, 150), self.font_small)
+        if self.level < 3:
+             self._draw_text("[!] Lvl 3'te Açılır", (overlay_x + 50, overlay_y + 240), (255, 100, 100), self.font_small)
         else:
-            self._draw_text(f"[3] Hız Botu (15sn) - {constants.UPGRADE_SPEED_BOOST_PRICE}", (overlay_x + 50, overlay_y + 180), (255, 150, 50), self.font_small)
-            self._draw_text(f"[4] Büyük Sepet (15sn) - {constants.UPGRADE_BASKET_PRICE}", (overlay_x + 50, overlay_y + 220), (50, 255, 150), self.font_small)
-        
-        self._draw_text("[SPACE] Kapat", (overlay_x + 180, overlay_y + 310), (200, 200, 200), self.font_small)
+            # Scaling Boots
+            boots_price = constants.BOOTS_BASE_PRICE + (self.level - 3) * constants.BOOTS_PRICE_STEP
+            boots_dur = constants.BOOTS_BASE_DURATION + (self.level - 3) * constants.BOOTS_DURATION_STEP
+            self._draw_text(f"[3] Hız Botu ({int(boots_dur)}sn) - {boots_price}", (overlay_x + 50, overlay_y + 240), (255, 150, 50), self.font_small)
+            
+            # Medium Basket (2x)
+            self._draw_text(f"[4] Orta Sepet (2x - 15sn) - {constants.UPGRADE_BASKET_2_PRICE}", (overlay_x + 50, overlay_y + 280), (50, 255, 150), self.font_small)
+            
+            # Big Basket (3x)
+            if self.level >= 5:
+                self._draw_text(f"[6] Büyük Sepet (3x - 15sn) - {constants.UPGRADE_BASKET_3_PRICE}", (overlay_x + 50, overlay_y + 320), (255, 215, 0), self.font_small)
+            else:
+                self._draw_text("[!] Büyük Sepet Lvl 5'te", (overlay_x + 50, overlay_y + 320), (100, 100, 100), self.font_small)
+
+        self._draw_text("[SPACE] Kapat", (overlay_x + 180, overlay_y + 380), (200, 200, 200), self.font_small)
 
     def _draw_interaction_prompts(self):
         # Interaction hints
@@ -385,7 +463,7 @@ class Game:
             prompt = "[SPACE] Marketi Aç"
         
         # Plant hint
-        if any(item in self.player.items for item in ["SEED", "SAPLING"]) and self.player.x < constants.FARM_END:
+        if any(item in self.player.items for item in ["SEED", "SAPLING", "WHEAT_SEED"]) and self.player.x < constants.FARM_END:
             prompt = "[E] Ek"
 
         if prompt:

@@ -20,10 +20,11 @@ class Poop:
             pygame.draw.circle(screen, (100, 70, 20), (int(self.x), int(self.y)), 15)
 
 class Crop:
-    """Level 1 Carrot crop"""
-    def __init__(self, x: float, y: float):
+    """Level 1 Carrot / Level 4 Wheat crop"""
+    def __init__(self, x: float, y: float, crop_type: FoodType = FoodType.CARROT):
         self.x = x
         self.y = y
+        self.type = crop_type
         self.state = CropState.SEED
         self.timer = 0.0
         self.growth_time = constants.GROWTH_TIME_CARROT
@@ -32,20 +33,20 @@ class Crop:
         if self.state == CropState.SEED:
             self.timer += dt
             if self.timer >= self.growth_time:
-                self.state = CropState.MATURE
+                self.state = CropState.MATURE # Instantly matures for now
     
     def draw(self, screen, sprites):
         growth = self.timer / self.growth_time
         if self.state == CropState.MATURE:
-            spr = sprites.get('crop_mature')
+            spr_key = 'crop_mature' if self.type == FoodType.CARROT else 'wheat_mature'
+            spr = sprites.get(spr_key)
             if spr:
-                # Mature size: 30x36
                 scaled = pygame.transform.smoothscale(spr, (30, 36))
                 screen.blit(scaled, (int(self.x - 15), int(self.y - 18)))
         else:
-            spr = sprites.get('crop_seed')
+            spr_key = 'crop_seed' if self.type == FoodType.CARROT else 'wheat_seed'
+            spr = sprites.get(spr_key)
             if spr:
-                # Progressive growth size (from 10 to 22px)
                 size = int(10 + 12 * growth)
                 scaled = pygame.transform.smoothscale(spr, (size, size))
                 screen.blit(scaled, (int(self.x - size//2), int(self.y - size//2)))
@@ -115,22 +116,30 @@ class Horse:
         self.feedings_count = 0
         
         # New requirements logic
-        self.wanted_items = self._generate_requests(level, can_have_three)
+        self.wanted_items = self._generate_requests(level)
         self.initial_count = len(self.wanted_items)
         self.fed_items: List[FoodType] = [] # Track what has been fed
 
-    def _generate_requests(self, level: int, can_have_three: bool = True) -> List[FoodType]:
-        max_items = 3 if can_have_three else 2
-        choices = [n for n in range(1, max_items + 1) if n != self.previous_count]
-        if not choices: choices = [1] # Fallback
-        num_items = random.choice(choices)
-        self.previous_count = num_items
-        if level == 1:
-            return [FoodType.CARROT] * num_items
+    def _generate_requests(self, level: int) -> List[FoodType]:
+        # Count scaling: Level 1-2 (1-2 items), Level 3+ (1-3 items), Level 5+ (3 items)
+        if level <= 2:
+            num_items = random.randint(1, 2)
+        elif level <= 4:
+            num_items = random.randint(1, 3)
         else:
-            # Level 2+: Random mix of carrots and apples
-            # To ensure it's not ONLY apples, we just pick randomly for each slot.
-            return [random.choice([FoodType.CARROT, FoodType.APPLE]) for _ in range(num_items)]
+            num_items = 3
+        
+        # Avoid same count twice in a row if possible
+        if num_items == self.previous_count and level < 5:
+            num_items = random.randint(1, 3)
+        self.previous_count = num_items
+
+        # Item variety scaling
+        pool = [FoodType.CARROT]
+        if level >= 2: pool.append(FoodType.APPLE)
+        if level >= 4: pool.append(FoodType.WHEAT)
+
+        return [random.choice(pool) for _ in range(num_items)]
 
     def update(self, dt) -> Optional[Poop]:
         if self.state == HorseState.WAITING:
@@ -150,13 +159,18 @@ class Horse:
     def is_finished(self) -> bool:
         return len(self.wanted_items) == 0
 
-    def reset(self, level: int, can_have_three: bool = True):
-        # Keep x and y, just reset state and items
+    def reset(self, level: int):
         self.state = HorseState.WAITING
-        self.remaining_time = 80.0 if level == 1 else 60.0
+        # Patience scaling: Level 1 (80s), Level 2-5 (60s), Level 6+ (-10% each level)
+        base_patience = 80.0 if level == 1 else 60.0
+        if level >= 6:
+            reduction = (level - 5) * 0.1
+            base_patience *= (1.0 - min(0.6, reduction)) # Max 60% reduction
+
+        self.remaining_time = base_patience
         self.max_time = self.remaining_time
         self.fed_items = []
-        self.wanted_items = self._generate_requests(level, can_have_three)
+        self.wanted_items = self._generate_requests(level)
         self.initial_count = len(self.wanted_items)
         self.feedings_count += 1
 
@@ -205,7 +219,7 @@ class Player:
         self.x = constants.SCREEN_WIDTH // 2
         self.y = constants.SCREEN_HEIGHT // 2
         self.base_speed = 240
-        self.speed = self.base_speed
+        self.speed: float = float(self.base_speed)
         self.state = PlayerState.EMPTY
         self.items: List[str] = [] # Supports multiple items for Big Basket
         
@@ -216,6 +230,7 @@ class Player:
         # Power-up timers
         self.speed_boost_timer = 0.0
         self.basket_timer = 0.0
+        self.basket_capacity = 1 # Default
         
     def move(self, keys, dt):
         # Update timers
