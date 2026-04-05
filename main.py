@@ -19,7 +19,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
-        self.version = "v1.3.1"
+        self.version = "v1.3.2"
         self.game_state = "START"
         
         # Assets
@@ -245,8 +245,6 @@ class Game:
                 self.player.apple_saplings -= 1
                 if self.player.apple_saplings <= 0: self.player.items.remove("SAPLING")
                 return
-
-
     def _update(self, dt):
         if self.game_over: return
         
@@ -548,57 +546,83 @@ class Game:
             self._draw_centered_text(prompt, self.player.y - 70, constants.COLOR_BLACK, self.font_small)
 
     def _draw_start_screen(self):
-        # Premium Start Screen with pulsing text
-        # 1. Background (Blurry effect by scaling and overlay)
+        # Ultra-Premium Start Screen v1.3.2
+        # 1. Background
         bg = self.sprites.get('bg_horses')
         if bg:
             self.screen.blit(bg, (0, 0))
             
-        # 2. Dark Premium Overlay
+        # 2. Dynamic Overlay (Dark & Atmospheric)
         overlay = pygame.Surface((constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((10, 10, 30, 200)) 
+        # Deep forest green/black gradient feel
+        overlay.fill((5, 15, 5, 210)) 
         self.screen.blit(overlay, (0, 0))
         
-        # 3. Logo/Title with Shadow
-        title_y = constants.SCREEN_HEIGHT // 2 - 120
-        # Shadow
-        shadow_surf = self.font_large.render("HUNGRY HERD", True, (0, 0, 0))
-        shadow_rect = shadow_surf.get_rect(center=(constants.SCREEN_WIDTH // 2 + 4, title_y + 4))
-        self.screen.blit(shadow_surf, shadow_rect)
+        # 3. Decorative Elements (Floating leaves or grass)
+        time_ms = pygame.time.get_ticks()
+        for i in range(5):
+            offset = math.sin((time_ms + i * 1000) / 1000) * 10
+            x = 100 + i * 250 + offset
+            y = constants.SCREEN_HEIGHT - 100 + offset
+            grass = self.sprites.get('bg_grass')
+            if grass:
+                self.screen.blit(grass, (x, y))
+
+        # 4. Logo/Title with Glowing Shadow
+        title_y = constants.SCREEN_HEIGHT // 2 - 130
+        pulse = (math.sin(time_ms / 400) + 1) / 2
+        glow_size = int(2 + pulse * 4)
+        
+        # Glow Layer
+        glow_color = (100, 255, 100, 50)
+        glow_surf = self.font_large.render("HUNGRY HERD", True, (0, 50, 0))
+        for ox in range(-glow_size, glow_size+1, 2):
+            for oy in range(-glow_size, glow_size+1, 2):
+                self.screen.blit(glow_surf, (constants.SCREEN_WIDTH // 2 - glow_surf.get_width() // 2 + ox, title_y + oy))
+        
         # Main Title
         self._draw_centered_text("HUNGRY HERD", title_y, (255, 255, 255), self.font_large)
         
         # Subtitle
-        self._draw_centered_text("Çiftliğini Kur, Atlarını Besle!", title_y + 60, (140, 255, 140), self.font_small)
+        self._draw_centered_text("Doğanın Kalbinde Çiftliğini Kur", title_y + 60, (200, 255, 200), self.font_small)
 
-        # 4. Pulsing Interaction Prompt
-        pulse = (math.sin(pygame.time.get_ticks() / 300) + 1) / 2
-        pulse_alpha = int(140 + pulse * 115) 
+        # 5. Pulsing Button Interaction
+        btn_alpha = int(160 + pulse * 95)
+        prompt_y = title_y + 190
         
-        prompt_y = title_y + 180
-        prompt_text = "BAŞLAMAK İÇİN TIKLA"
-        
-        # Button Box
-        btn_w, btn_h = 420, 80
+        # Button Shadow/Glow
+        btn_w, btn_h = 440, 90
         btn_rect = pygame.Rect((constants.SCREEN_WIDTH - btn_w) // 2, prompt_y - 25, btn_w, btn_h)
+        
+        # Rounded Button Surface
         btn_surf = pygame.Surface((btn_w, btn_h), pygame.SRCALPHA)
-        pygame.draw.rect(btn_surf, (255, 255, 255, 30), (0, 0, btn_w, btn_h), border_radius=20)
-        # Gold pulsing border
-        border_color = (255, 215, 0, pulse_alpha)
-        pygame.draw.rect(btn_surf, border_color, (0, 0, btn_w, btn_h), width=4, border_radius=20)
+        # Background of button
+        pygame.draw.rect(btn_surf, (255, 255, 255, 20), (0, 0, btn_w, btn_h), border_radius=25)
+        # Animated Border
+        border_color = (255, 255, 255, btn_alpha)
+        pygame.draw.rect(btn_surf, border_color, (0, 0, btn_w, btn_h), width=3, border_radius=25)
         self.screen.blit(btn_surf, btn_rect.topleft)
 
-        # Text
-        text_color = (255, 255, 255, pulse_alpha)
-        text_surf = self.font_small.render(prompt_text, True, text_color)
+        # Prompt Text
+        text_color = (255, 255, 255, btn_alpha)
+        text_surf = self.font_small.render("OYUNU BAŞLATMAK İÇİN TIKLA", True, text_color)
         text_rect = text_surf.get_rect(center=btn_rect.center)
         self.screen.blit(text_surf, text_rect)
         
-        # 5. Mute Hint
-        self._draw_centered_text("(Sesi açmak için tıkla)", prompt_y + 75, (160, 160, 160), self.font_small)
+        # Audio Unmute Hint
+        hint_alpha = int(120 + pulse * 60)
+        self._draw_centered_text("(Müzik Bu Tıklama ile Başlayacaktır)", prompt_y + 85, (200, 200, 200, hint_alpha), self.font_small)
         
-        # Version
-        self._draw_text(self.version, (20, constants.SCREEN_HEIGHT - 35), (120, 120, 120), self.font_small)
+        # Version Tag
+        self._draw_text(self.version, (30, constants.SCREEN_HEIGHT - 40), (100, 120, 100), self.font_small)
+
+    def _draw_text(self, text, pos, color, font):
+        if len(color) == 4: # RGBA support for some calls
+            surf = font.render(text, True, color[:3])
+            surf.set_alpha(color[3])
+        else:
+            surf = font.render(text, True, color)
+        self.screen.blit(surf, pos)
 
         # Version
         self._draw_text(self.version, (20, constants.SCREEN_HEIGHT - 35), (120, 120, 120), self.font_small)
