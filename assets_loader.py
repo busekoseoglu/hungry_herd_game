@@ -44,9 +44,10 @@ class AssetsLoader:
         
         # Initialize mixer
         try:
-            pygame.mixer.init()
-        except:
-            print("Warning: Audio mixer failed to initialize.")
+            pygame.mixer.init(44100, -16, 2, 512)
+            print("Audio mixer initialized successfully.")
+        except Exception as e:
+            print(f"Warning: Audio mixer failed to initialize: {e}")
 
     def load_all(self):
         """Main method to load or generate all assets"""
@@ -80,7 +81,9 @@ class AssetsLoader:
     def _load_sounds(self):
         """Loads sounds from assets/sounds/ folder if it exists"""
         sound_dir = os.path.join(self.assets_dir, "sounds")
+        print(f"Loading sounds from: {sound_dir}")
         if not os.path.exists(sound_dir):
+            print(f"Sound directory NOT FOUND: {sound_dir}")
             return
 
         for name in self.REQUIRED_SOUNDS:
@@ -92,6 +95,7 @@ class AssetsLoader:
             if os.path.exists(path):
                 try:
                     self.sounds[name] = pygame.mixer.Sound(path)
+                    print(f"Loaded sound: {name} ({path})")
                 except Exception as e:
                     print(f"Failed to load sound {name}: {e}")
 
@@ -99,9 +103,14 @@ class AssetsLoader:
         """Plays a registered sound if loaded"""
         if name in self.sounds:
             try:
+                print(f"Playing sound: {name}")
                 self.sounds[name].play()
-            except:
-                pass
+            except Exception as e:
+                print(f"Playback error for {name}: {e}")
+        else:
+            # Silently ignored in production, but let's log for debug
+            # print(f"Sound not ready/loaded: {name}")
+            pass
 
     def _load_asset(self, name):
         path = os.path.join(self.assets_dir, f"{name}.png")
