@@ -19,7 +19,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
-        self.version = "v1.0.8"
+        self.version = "v1.0.9"
         
         # Assets
         self.loader = AssetsLoader(os.path.join(os.getcwd(), "assets"))
@@ -209,33 +209,32 @@ class Game:
         max_items = 3 if self.player.basket_timer > 0 else 1
 
         # 1. Auto-Harvest Crops
-        if len(self.player.items) < max_items:
-            for crop in self.crops[:]:
-                if crop.state == CropState.MATURE:
-                    dist = math.sqrt((self.player.x - crop.x)**2 + (self.player.y - crop.y)**2)
-                    if dist < 35:
-                        self.crops.remove(crop)
-                        self.player.items.append("CARROT")
-                        # No return here, can collect more if space!
+        for crop in self.crops[:]:
+            if len(self.player.items) >= max_items: break
+            if crop.state == CropState.MATURE:
+                dist = math.sqrt((self.player.x - crop.x)**2 + (self.player.y - crop.y)**2)
+                if dist < 35:
+                    self.crops.remove(crop)
+                    self.player.items.append("CARROT")
         
         # 2. Auto-Harvest Trees
-        if len(self.player.items) < max_items:
-            for tree in self.apple_trees[:]:
-                if tree.state == "READY" and tree.apples_left > 0:
-                    dist = math.sqrt((self.player.x - tree.x)**2 + (self.player.y - tree.y)**2)
-                    if dist < 50:
-                        tree.harvest()
-                        self.player.items.append("APPLE")
-                        if tree.apples_left == 0:
-                            self.apple_trees.remove(tree)
+        for tree in self.apple_trees[:]:
+            if len(self.player.items) >= max_items: break
+            if tree.state == "READY" and tree.apples_left > 0:
+                dist = math.sqrt((self.player.x - tree.x)**2 + (self.player.y - tree.y)**2)
+                if dist < 50:
+                    tree.harvest()
+                    self.player.items.append("APPLE")
+                    if tree.apples_left == 0:
+                        self.apple_trees.remove(tree)
         
         # 3. Auto-Collect Poop
-        if len(self.player.items) < max_items:
-            for poop in self.poops[:]:
-                dist = math.sqrt((self.player.x - poop.x)**2 + (self.player.y - poop.y)**2)
-                if dist < 35:
-                    self.poops.remove(poop)
-                    self.player.items.append("POOP")
+        for poop in self.poops[:]:
+            if len(self.player.items) >= max_items: break
+            dist = math.sqrt((self.player.x - poop.x)**2 + (self.player.y - poop.y)**2)
+            if dist < 35:
+                self.poops.remove(poop)
+                self.player.items.append("POOP")
         
         # 4. Auto-Sell Poop
         if "POOP" in self.player.items:
