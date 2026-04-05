@@ -19,7 +19,8 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
-        self.version = "v1.2.4"
+        self.version = "v1.2.5"
+        self.game_state = "START" # CRITICAL FIXED
         
         # Assets
         self.loader = AssetsLoader(os.path.join(os.getcwd(), "assets"))
@@ -54,6 +55,7 @@ class Game:
         self.notification_msg = ""
         self.unlocked_notifs = {3: False, 5: False}
         self.game_over = False
+        self.game_state = "START"
         
         # Reset Entities
         self.player = Player()
@@ -358,9 +360,11 @@ class Game:
                         # Carry on to feed other items if possible!
 
     def _draw(self):
+        # 0. Clear screen
+        self.screen.fill((0, 0, 0))
+
         if self.game_state == "START":
             self._draw_start_screen()
-            pygame.display.flip()
             return
 
         # 1. Fill background (Grass)
