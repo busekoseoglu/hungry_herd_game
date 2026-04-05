@@ -19,7 +19,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
-        self.version = "v1.2.3"
+        self.version = "v1.2.4"
         
         # Assets
         self.loader = AssetsLoader(os.path.join(os.getcwd(), "assets"))
@@ -95,39 +95,50 @@ class Game:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            
+            if event.type == pygame.MOUSEBUTTONDOWN and self.game_state == "START":
+                self.loader.unlock_audio()
+                self.game_state = "PLAYING"
+
             if event.type == pygame.KEYDOWN:
-                # User interaction: unlock audio for web
+                # User interaction (Keyboard): unlock audio
                 self.loader.unlock_audio()
                 
-                if event.key == pygame.K_SPACE:
-                    if self.game_over:
-                        self.reset_game()
-                    else:
-                        # Toggle Shop or Trash
-                        if abs(self.player.x - constants.STORAGE_X) < 120 and abs(self.player.y - constants.STORAGE_Y) < 120:
-                            self.shop_open = not self.shop_open
-                        elif abs(self.player.x - constants.TRASH_X) < 120 and abs(self.player.y - constants.TRASH_Y) < 120:
-                            self._handle_interaction()
-                        else:
-                            self.shop_open = False
+                if self.game_state == "START":
+                    # For START screen, we now prefer a CLICK, but let's keep space as fallback
+                    if event.key == pygame.K_SPACE:
+                        self.game_state = "PLAYING"
                 
-                if event.key == pygame.K_e:
-                    self._handle_interaction()
+                elif self.game_state == "PLAYING":
+                    if event.key == pygame.K_SPACE:
+                        if self.game_over:
+                            self.reset_game()
+                        else:
+                            # Toggle Shop or Trash
+                            if abs(self.player.x - constants.STORAGE_X) < 120 and abs(self.player.y - constants.STORAGE_Y) < 120:
+                                self.shop_open = not self.shop_open
+                            elif abs(self.player.x - constants.TRASH_X) < 120 and abs(self.player.y - constants.TRASH_Y) < 120:
+                                self._handle_interaction()
+                            else:
+                                self.shop_open = False
+                    
+                    if event.key == pygame.K_e:
+                        self._handle_interaction()
 
-                # Shop keyboard shortcuts
-                if self.shop_open:
-                    if event.key == pygame.K_1 or event.key == pygame.K_KP1:
-                        self._buy_item("CARROT_SEEDS")
-                    if (event.key == pygame.K_2 or event.key == pygame.K_KP2) and self.level >= 2:
-                        self._buy_item("APPLE_SAPLING")
-                    if (event.key == pygame.K_3 or event.key == pygame.K_KP3) and self.level >= 3:
-                        self._buy_item("SPEED_BOOTS")
-                    if (event.key == pygame.K_4 or event.key == pygame.K_KP4) and self.level >= 3:
-                        self._buy_item("MEDIUM_BASKET")
-                    if (event.key == pygame.K_5 or event.key == pygame.K_KP5) and self.level >= 4:
-                        self._buy_item("WHEAT_SEEDS")
-                    if (event.key == pygame.K_6 or event.key == pygame.K_KP6) and self.level >= 5:
-                        self._buy_item("BIG_BASKET")
+                    # Shop keyboard shortcuts
+                    if self.shop_open:
+                        if event.key == pygame.K_1 or event.key == pygame.K_KP1:
+                            self._buy_item("CARROT_SEEDS")
+                        if (event.key == pygame.K_2 or event.key == pygame.K_KP2) and self.level >= 2:
+                            self._buy_item("APPLE_SAPLING")
+                        if (event.key == pygame.K_3 or event.key == pygame.K_KP3) and self.level >= 3:
+                            self._buy_item("SPEED_BOOTS")
+                        if (event.key == pygame.K_4 or event.key == pygame.K_KP4) and self.level >= 3:
+                            self._buy_item("MEDIUM_BASKET")
+                        if (event.key == pygame.K_5 or event.key == pygame.K_KP5) and self.level >= 4:
+                            self._buy_item("WHEAT_SEEDS")
+                        if (event.key == pygame.K_6 or event.key == pygame.K_KP6) and self.level >= 5:
+                            self._buy_item("BIG_BASKET")
 
     def _buy_item(self, item_type: str) -> bool:
         if item_type == "CARROT_SEEDS":
@@ -347,6 +358,11 @@ class Game:
                         # Carry on to feed other items if possible!
 
     def _draw(self):
+        if self.game_state == "START":
+            self._draw_start_screen()
+            pygame.display.flip()
+            return
+
         # 1. Fill background (Grass)
         for x in range(0, constants.SCREEN_WIDTH, 100):
             for y in range(0, constants.SCREEN_HEIGHT, 100):
@@ -524,6 +540,22 @@ class Game:
         self._draw_centered_text("OYUN BİTTİ", overlay_y + 60, (255, 50, 50), self.font_large)
         self._draw_centered_text(f"Toplam Skor: {self.score}", overlay_y + 130, (255, 255, 255), self.font_small)
         self._draw_centered_text("Yeniden Başlamak İçin SPACE'e Bas", overlay_y + 200, (200, 200, 200), self.font_small)
+
+    def _draw_start_screen(self):
+        self.screen.blit(self.loader.sprites['bg_horses'], (0, 0))
+        
+        overlay = pygame.Surface((constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        self.screen.blit(overlay, (0, 0))
+        
+        self._draw_centered_text("HUNGRY HERD", constants.SCREEN_HEIGHT // 2 - 100, (255, 255, 255), self.font_large)
+        self._draw_centered_text("Atları Besle, Çiftliğini Büyüt!", constants.SCREEN_HEIGHT // 2 - 20, (200, 255, 200), self.font_small)
+        
+        # Flashing "CLICK TO START" text
+        flash = (pygame.time.get_ticks() // 500) % 2
+        color = (255, 255, 100) if flash else (200, 200, 50)
+        self._draw_centered_text("BAŞLAMAK İÇİN TIKLA", constants.SCREEN_HEIGHT // 2 + 80, color, self.font_small)
+        self._draw_centered_text("(Sesi etkinleştirmek için ekrana tıkla)", constants.SCREEN_HEIGHT // 2 + 120, (150, 150, 150), self.font_small)
 
     def _draw_interaction_prompts(self):
         # Interaction hints
