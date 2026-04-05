@@ -207,7 +207,7 @@ class Player:
     def __init__(self):
         self.x = constants.SCREEN_WIDTH // 2
         self.y = constants.SCREEN_HEIGHT // 2
-        self.speed = 5
+        self.speed = 300
         self.state = PlayerState.EMPTY
         self.carrying_item: Optional[str] = None # "CARROT", "APPLE", "POOP", "SEED", "SAPLING"
         
@@ -215,7 +215,7 @@ class Player:
         self.carrot_seeds = 0
         self.apple_saplings = 0
         
-    def move(self, keys):
+    def move(self, keys, dt):
         dx, dy = 0, 0
         if keys[pygame.K_LEFT] or keys[pygame.K_a]: dx -= 1
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]: dx += 1
@@ -224,8 +224,8 @@ class Player:
         
         length = math.sqrt(dx*dx + dy*dy)
         if length > 0:
-            self.x += (dx/length) * self.speed
-            self.y += (dy/length) * self.speed
+            self.x += (dx/length) * self.speed * dt
+            self.y += (dy/length) * self.speed * dt
             
         # Bound to screen
         self.x = max(20, min(constants.SCREEN_WIDTH - 20, self.x))

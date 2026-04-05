@@ -176,7 +176,7 @@ class Game:
             for i, horse in enumerate(self.horses):
                 horse.reset(self.level, can_have_three=(i == 0))
 
-        self.player.move(pygame.key.get_pressed())
+        self.player.move(pygame.key.get_pressed(), dt)
         for crop in self.crops: crop.update(dt)
         for tree in self.apple_trees: tree.update(dt)
         for horse in self.horses: horse.update(dt)
