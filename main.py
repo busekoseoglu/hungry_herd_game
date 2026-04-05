@@ -19,7 +19,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
-        self.version = "v1.2.5"
+        self.version = "v1.2.6"
         self.game_state = "START" # CRITICAL FIXED
         
         # Assets

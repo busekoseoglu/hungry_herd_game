@@ -5,7 +5,7 @@ import constants
 
 class AssetsLoader:
     """Handles asset loading and procedural generation"""
-    VERSION = "1.2.3"
+    VERSION = "1.2.6"
     
     REQUIRED_ASSETS = [
         'horse', 'player', 'apple', 'apple_pale', 'carrot', 'carrot_pale',
@@ -60,6 +60,7 @@ class AssetsLoader:
                     pygame.mixer.init(44100, -16, 2, 512)
                 
                 # Resuming music context often helps on web
+                pygame.mixer.music.set_volume(1.0)
                 pygame.mixer.music.play(-1) # Play silent or dummy
                 pygame.mixer.music.stop()
                 
@@ -113,8 +114,10 @@ class AssetsLoader:
             
             if os.path.exists(path):
                 try:
-                    self.sounds[name] = pygame.mixer.Sound(path)
-                    print(f"Loaded sound: {name} ({path})")
+                    sound = pygame.mixer.Sound(path)
+                    sound.set_volume(1.0)
+                    self.sounds[name] = sound
+                    print(f"DEBUG: Loaded sound '{name}' (Len: {sound.get_length():.2f}s, Vol: {sound.get_volume()})")
                 except Exception as e:
                     print(f"Failed to load sound {name}: {e}")
 
@@ -125,8 +128,9 @@ class AssetsLoader:
 
         if name in self.sounds:
             try:
-                print(f"Playing sound: {name}")
-                self.sounds[name].play()
+                snd = self.sounds[name]
+                print(f"DEBUG: Playing sound '{name}' (Vol: {snd.get_volume()})")
+                snd.play()
             except Exception as e:
                 print(f"Playback error for {name}: {e}")
         else:
