@@ -128,12 +128,9 @@ class Horse:
         if level == 1:
             return [FoodType.CARROT] * num_items
         else:
-            # Level 2+: Ensure a mix (at least one apple)
-            items = [FoodType.APPLE]
-            for _ in range(num_items - 1):
-                items.append(random.choice([FoodType.CARROT, FoodType.APPLE]))
-            random.shuffle(items)
-            return items
+            # Level 2+: Random mix of carrots and apples
+            # To ensure it's not ONLY apples, we just pick randomly for each slot.
+            return [random.choice([FoodType.CARROT, FoodType.APPLE]) for _ in range(num_items)]
 
     def update(self, dt) -> Optional[Poop]:
         if self.state == HorseState.WAITING:
@@ -207,7 +204,7 @@ class Player:
     def __init__(self):
         self.x = constants.SCREEN_WIDTH // 2
         self.y = constants.SCREEN_HEIGHT // 2
-        self.speed = 270
+        self.speed = 240
         self.state = PlayerState.EMPTY
         self.carrying_item: Optional[str] = None # "CARROT", "APPLE", "POOP", "SEED", "SAPLING"
         
