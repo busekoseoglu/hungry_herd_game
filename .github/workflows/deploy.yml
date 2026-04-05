@@ -2,7 +2,7 @@ name: Pygame Web Build
 
 on:
   push:
-    branches: [ "main", "master", "web-version" ]
+    branches: [ "main", "master", "web-version", "irem_game_coding" ]
   workflow_dispatch:
 
 permissions:
