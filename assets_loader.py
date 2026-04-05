@@ -5,7 +5,7 @@ import constants
 
 class AssetsLoader:
     """Handles asset loading and procedural generation"""
-    VERSION = "1.2.2"
+    VERSION = "1.2.3"
     
     REQUIRED_ASSETS = [
         'horse', 'player', 'apple', 'apple_pale', 'carrot', 'carrot_pale',
@@ -43,21 +43,30 @@ class AssetsLoader:
         self.sprites = {}
         self.sounds = {}
         
-        # Do NOT init mixer here for web, let's wait for user interaction
+        # In web (pygbag), mixer might already be init'd by pygame.init()
         self.mixer_initialized = False
-        print(f"DEBUG: AssetsLoader v{self.VERSION} ready (mixer pending)...")
+        if pygame.mixer.get_init():
+            self.mixer_initialized = True
+            print(f"DEBUG: AssetsLoader v{self.VERSION} mixer detected.")
+        else:
+            print(f"DEBUG: AssetsLoader v{self.VERSION} mixer NOT detected yet.")
 
     def unlock_audio(self):
-        """Called on user interaction to enable web audio context"""
+        """Standard pygbag 'wake up' pattern"""
         if not self.mixer_initialized:
             try:
-                print("DEBUG: Unlocking audio context...")
+                # If not init'd, try a standard init
                 if not pygame.mixer.get_init():
                     pygame.mixer.init(44100, -16, 2, 512)
+                
+                # Resuming music context often helps on web
+                pygame.mixer.music.play(-1) # Play silent or dummy
+                pygame.mixer.music.stop()
+                
                 self.mixer_initialized = True
-                print("DEBUG: Audio context UNLOCKED.")
+                print("DEBUG: Audio context WAKE UP signal sent.")
             except Exception as e:
-                print(f"DEBUG: Audio unlock failure: {e}")
+                print(f"DEBUG: Audio wake up error: {e}")
 
     def load_all(self):
         """Main method to load or generate all assets"""

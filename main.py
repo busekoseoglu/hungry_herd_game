@@ -19,7 +19,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
-        self.version = "v1.2.2"
+        self.version = "v1.2.3"
         
         # Assets
         self.loader = AssetsLoader(os.path.join(os.getcwd(), "assets"))
