@@ -183,6 +183,7 @@ class Game:
 
     def _check_horse_finished(self, horse: Horse):
         if horse.is_finished():
+            self.score += 10
             # Poop logic: Level 1 (Every 2nd), Level 2+ (Guaranteed)
             # horse.feedings_count starts at 0 or 1? Entity init sets 0, reset increments.
             should_spawn = (self.level >= 2) or (horse.feedings_count % 2 == 1)
@@ -330,7 +331,6 @@ class Game:
                     elif item == "WHEAT": f_type = FoodType.WHEAT
                     
                     if f_type and horse.receive_food(f_type):
-                        self.score += 10
                         self.player.items.remove(item)
                         self._check_horse_finished(horse)
                         # Carry on to feed other items if possible!
