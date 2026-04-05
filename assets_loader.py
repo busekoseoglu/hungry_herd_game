@@ -5,7 +5,7 @@ import constants
 
 class AssetsLoader:
     """Handles asset loading and procedural generation"""
-    VERSION = "1.2.6"
+    VERSION = "1.3.0"
     
     REQUIRED_ASSETS = [
         'horse', 'player', 'apple', 'apple_pale', 'carrot', 'carrot_pale',
@@ -13,8 +13,6 @@ class AssetsLoader:
         'bg_horses', 'shop_stall', 'apple_tree', 'agac_1', 'agac_2', 'agac_3', 'agac_4', 'agac_5', 'poop', 'trash',
         'wheat_seed', 'wheat'
     ]
-    
-    REQUIRED_SOUNDS = ['plant', 'harvest', 'feed', 'buy', 'poop']
     
     TARGET_SIZES = {
         'player': (36, 44),
@@ -41,33 +39,6 @@ class AssetsLoader:
     def __init__(self, assets_dir: str):
         self.assets_dir = assets_dir
         self.sprites = {}
-        self.sounds = {}
-        
-        # In web (pygbag), mixer might already be init'd by pygame.init()
-        self.mixer_initialized = False
-        if pygame.mixer.get_init():
-            self.mixer_initialized = True
-            print(f"DEBUG: AssetsLoader v{self.VERSION} mixer detected.")
-        else:
-            print(f"DEBUG: AssetsLoader v{self.VERSION} mixer NOT detected yet.")
-
-    def unlock_audio(self):
-        """Standard pygbag 'wake up' pattern"""
-        if not self.mixer_initialized:
-            try:
-                # If not init'd, try a standard init
-                if not pygame.mixer.get_init():
-                    pygame.mixer.init(44100, -16, 2, 512)
-                
-                # Resuming music context often helps on web
-                pygame.mixer.music.set_volume(1.0)
-                pygame.mixer.music.play(-1) # Play silent or dummy
-                pygame.mixer.music.stop()
-                
-                self.mixer_initialized = True
-                print("DEBUG: Audio context WAKE UP signal sent.")
-            except Exception as e:
-                print(f"DEBUG: Audio wake up error: {e}")
 
     def load_all(self):
         """Main method to load or generate all assets"""
@@ -95,49 +66,10 @@ class AssetsLoader:
                     except Exception as e:
                         print(f"Failed to save {name}.png: {e}")
 
-        self._load_sounds()
+ 
         return self.sprites
 
-    def _load_sounds(self):
-        """Loads sounds from assets/sounds/ folder if it exists"""
-        sound_dir = os.path.join(self.assets_dir, "sounds")
-        print(f"Loading sounds from: {sound_dir}")
-        if not os.path.exists(sound_dir):
-            print(f"Sound directory NOT FOUND: {sound_dir}")
-            return
-
-        for name in self.REQUIRED_SOUNDS:
-            # Check for .wav (high fidelity) or .ogg (web optimized)
-            path = os.path.join(sound_dir, f"{name}.wav")
-            if not os.path.exists(path):
-                path = os.path.join(sound_dir, f"{name}.ogg")
-            
-            if os.path.exists(path):
-                try:
-                    sound = pygame.mixer.Sound(path)
-                    sound.set_volume(1.0)
-                    self.sounds[name] = sound
-                    print(f"DEBUG: Loaded sound '{name}' (Len: {sound.get_length():.2f}s, Vol: {sound.get_volume()})")
-                except Exception as e:
-                    print(f"Failed to load sound {name}: {e}")
-
-    def play_sound(self, name):
-        """Plays a registered sound if loaded"""
-        if not self.mixer_initialized:
-            self.unlock_audio()
-
-        if name in self.sounds:
-            try:
-                snd = self.sounds[name]
-                print(f"DEBUG: Playing sound '{name}' (Vol: {snd.get_volume()})")
-                snd.play()
-            except Exception as e:
-                print(f"Playback error for {name}: {e}")
-        else:
-            # Silently ignored in production, but let's log for debug
-            # print(f"Sound not ready/loaded: {name}")
-            pass
-
+ 
     def _load_asset(self, name):
         path = os.path.join(self.assets_dir, f"{name}.png")
         try:

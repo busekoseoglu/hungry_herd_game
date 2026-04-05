@@ -19,8 +19,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
-        self.version = "v1.2.6"
-        self.game_state = "START" # CRITICAL FIXED
+        self.version = "v1.3.0"
         
         # Assets
         self.loader = AssetsLoader(os.path.join(os.getcwd(), "assets"))
@@ -55,7 +54,7 @@ class Game:
         self.notification_msg = ""
         self.unlocked_notifs = {3: False, 5: False}
         self.game_over = False
-        self.game_state = "START"
+        self.game_over = False
         
         # Reset Entities
         self.player = Player()
@@ -98,24 +97,11 @@ class Game:
                 pygame.quit()
                 sys.exit()
             
-            if event.type == pygame.MOUSEBUTTONDOWN and self.game_state == "START":
-                self.loader.unlock_audio()
-                self.game_state = "PLAYING"
-
             if event.type == pygame.KEYDOWN:
-                # User interaction (Keyboard): unlock audio
-                self.loader.unlock_audio()
-                
-                if self.game_state == "START":
-                    # For START screen, we now prefer a CLICK, but let's keep space as fallback
-                    if event.key == pygame.K_SPACE:
-                        self.game_state = "PLAYING"
-                
-                elif self.game_state == "PLAYING":
-                    if event.key == pygame.K_SPACE:
-                        if self.game_over:
-                            self.reset_game()
-                        else:
+                if event.key == pygame.K_SPACE:
+                    if self.game_over:
+                        self.reset_game()
+                    else:
                             # Toggle Shop or Trash
                             if abs(self.player.x - constants.STORAGE_X) < 120 and abs(self.player.y - constants.STORAGE_Y) < 120:
                                 self.shop_open = not self.shop_open
@@ -194,7 +180,6 @@ class Game:
                 self.player.basket_timer += constants.UPGRADE_DURATION
                 self.player.basket_capacity = 3
                 self.shop_open = False
-                self.loader.play_sound('buy')
                 return True
         return False
 
@@ -239,19 +224,16 @@ class Game:
                 self.crops.append(Crop(self.player.x, self.player.y, FoodType.CARROT))
                 self.player.carrot_seeds -= 1
                 if self.player.carrot_seeds <= 0: self.player.items.remove("SEED")
-                self.loader.play_sound('plant')
                 return
             elif "WHEAT_SEED" in self.player.items and self.player.y < constants.FARM_MID_Y:
                 self.crops.append(Crop(self.player.x, self.player.y, FoodType.WHEAT))
                 self.player.wheat_seeds -= 1
                 if self.player.wheat_seeds <= 0: self.player.items.remove("WHEAT_SEED")
-                self.loader.play_sound('plant')
                 return
             elif "SAPLING" in self.player.items and self.player.y >= constants.FARM_MID_Y:
                 self.apple_trees.append(AppleTree(self.player.x, self.player.y))
                 self.player.apple_saplings -= 1
                 if self.player.apple_saplings <= 0: self.player.items.remove("SAPLING")
-                self.loader.play_sound('plant')
                 return
 
 
@@ -313,7 +295,6 @@ class Game:
                     self.crops.remove(crop)
                     item_type = "CARROT" if crop.type == FoodType.CARROT else "WHEAT"
                     self.player.items.append(item_type)
-                    self.loader.play_sound('harvest')
         
         # 2. Auto-Harvest Trees
         for tree in self.apple_trees[:]:
@@ -323,7 +304,6 @@ class Game:
                 if dist < 50:
                     tree.harvest()
                     self.player.items.append("APPLE")
-                    self.loader.play_sound('harvest')
                     if tree.apples_left == 0:
                         self.apple_trees.remove(tree)
         
@@ -334,7 +314,6 @@ class Game:
             if dist < 35:
                 self.poops.remove(poop)
                 self.player.items.append("POOP")
-                self.loader.play_sound('poop')
         
         # 4. Auto-Sell Poop
         if "POOP" in self.player.items:
@@ -355,17 +334,12 @@ class Game:
                     
                     if f_type and horse.receive_food(f_type):
                         self.player.items.remove(item)
-                        self.loader.play_sound('feed')
                         self._check_horse_finished(horse)
                         # Carry on to feed other items if possible!
 
     def _draw(self):
         # 0. Clear screen
         self.screen.fill((0, 0, 0))
-
-        if self.game_state == "START":
-            self._draw_start_screen()
-            return
 
         # 1. Fill background (Grass)
         for x in range(0, constants.SCREEN_WIDTH, 100):
@@ -476,6 +450,20 @@ class Game:
         
         pygame.display.flip()
 
+    def _draw_game_over(self):
+        w, h = 600, 300
+        overlay_x = (constants.SCREEN_WIDTH - w) // 2
+        overlay_y = (constants.SCREEN_HEIGHT - h) // 2
+        
+        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.rect(overlay, (0, 0, 0, 220), (0, 0, w, h), border_radius=30)
+        self.screen.blit(overlay, (overlay_x, overlay_y))
+        pygame.draw.rect(self.screen, (255, 50, 50), (overlay_x, overlay_y, w, h), width=4, border_radius=30)
+        
+        self._draw_centered_text("OYUN BİTTİ", overlay_y + 60, (255, 50, 50), self.font_large)
+        self._draw_centered_text(f"Toplam Skor: {self.score}", overlay_y + 130, (255, 255, 255), self.font_small)
+        self._draw_centered_text("Yeniden Başlamak İçin SPACE'e Bas", overlay_y + 200, (200, 200, 200), self.font_small)
+
     def _draw_stat_box(self, x, y, val, title, color):
         width, height = constants.BOX_WIDTH, constants.BOX_HEIGHT
         rect = pygame.Rect(x - width//2, y - height//2, width, height)
@@ -530,36 +518,6 @@ class Game:
                 self._draw_text("[!] Büyük Sepet Lvl 5'te", (overlay_x + 50, overlay_y + 320), (100, 100, 100), self.font_small)
 
         self._draw_text("[SPACE] Kapat", (overlay_x + 180, overlay_y + 380), (200, 200, 200), self.font_small)
-
-    def _draw_game_over(self):
-        w, h = 600, 300
-        overlay_x = (constants.SCREEN_WIDTH - w) // 2
-        overlay_y = (constants.SCREEN_HEIGHT - h) // 2
-        
-        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.rect(overlay, (0, 0, 0, 220), (0, 0, w, h), border_radius=30)
-        self.screen.blit(overlay, (overlay_x, overlay_y))
-        pygame.draw.rect(self.screen, (255, 50, 50), (overlay_x, overlay_y, w, h), width=4, border_radius=30)
-        
-        self._draw_centered_text("OYUN BİTTİ", overlay_y + 60, (255, 50, 50), self.font_large)
-        self._draw_centered_text(f"Toplam Skor: {self.score}", overlay_y + 130, (255, 255, 255), self.font_small)
-        self._draw_centered_text("Yeniden Başlamak İçin SPACE'e Bas", overlay_y + 200, (200, 200, 200), self.font_small)
-
-    def _draw_start_screen(self):
-        self.screen.blit(self.loader.sprites['bg_horses'], (0, 0))
-        
-        overlay = pygame.Surface((constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 150))
-        self.screen.blit(overlay, (0, 0))
-        
-        self._draw_centered_text("HUNGRY HERD", constants.SCREEN_HEIGHT // 2 - 100, (255, 255, 255), self.font_large)
-        self._draw_centered_text("Atları Besle, Çiftliğini Büyüt!", constants.SCREEN_HEIGHT // 2 - 20, (200, 255, 200), self.font_small)
-        
-        # Flashing "CLICK TO START" text
-        flash = (pygame.time.get_ticks() // 500) % 2
-        color = (255, 255, 100) if flash else (200, 200, 50)
-        self._draw_centered_text("BAŞLAMAK İÇİN TIKLA", constants.SCREEN_HEIGHT // 2 + 80, color, self.font_small)
-        self._draw_centered_text("(Sesi etkinleştirmek için ekrana tıkla)", constants.SCREEN_HEIGHT // 2 + 120, (150, 150, 150), self.font_small)
 
     def _draw_interaction_prompts(self):
         # Interaction hints
