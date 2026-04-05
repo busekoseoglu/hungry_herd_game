@@ -321,10 +321,14 @@ class Game:
         # 5. Auto-Feed Horses
         for horse in self.horses:
             dist = math.sqrt((self.player.x - horse.x)**2 + (self.player.y - horse.y)**2)
-            if dist < 65 and horse.state == HorseState.WAITING:
+            if dist < 150 and horse.state == HorseState.WAITING:
                 # Try to give items from inventory
                 for item in self.player.items[:]:
-                    f_type = FoodType.CARROT if item == "CARROT" else FoodType.APPLE if item == "APPLE" else None
+                    f_type = None
+                    if item == "CARROT": f_type = FoodType.CARROT
+                    elif item == "APPLE": f_type = FoodType.APPLE
+                    elif item == "WHEAT": f_type = FoodType.WHEAT
+                    
                     if f_type and horse.receive_food(f_type):
                         self.score += 10
                         self.player.items.remove(item)

@@ -200,7 +200,9 @@ class Horse:
                 bx = self.x - 140 - i * 45
                 by = self.y - 15
                 
-                spr_name = 'carrot' if item_type == FoodType.CARROT else 'apple'
+                spr_name = 'carrot'
+                if item_type == FoodType.APPLE: spr_name = 'apple'
+                elif item_type == FoodType.WHEAT: spr_name = 'wheat'
                 s = sprites.get(spr_name)
                 
                 if s:
