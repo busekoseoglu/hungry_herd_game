@@ -37,19 +37,24 @@ class Crop:
     
     def draw(self, screen, sprites):
         growth = self.timer / self.growth_time
+        # Size differences: Wheat is taller/wider
+        target_size = (30, 36) if self.type == FoodType.CARROT else (45, 55)
+        
         if self.state == CropState.MATURE:
             spr_key = 'crop_mature' if self.type == FoodType.CARROT else 'wheat'
             spr = sprites.get(spr_key)
             if spr:
-                scaled = pygame.transform.smoothscale(spr, (30, 36))
-                screen.blit(scaled, (int(self.x - 15), int(self.y - 18)))
+                scaled = pygame.transform.smoothscale(spr, target_size)
+                screen.blit(scaled, (int(self.x - target_size[0]//2), int(self.y - target_size[1]//2)))
         else:
             spr_key = 'crop_seed' if self.type == FoodType.CARROT else 'wheat_seed'
             spr = sprites.get(spr_key)
             if spr:
-                size = int(10 + 12 * growth)
-                scaled = pygame.transform.smoothscale(spr, (size, size))
-                screen.blit(scaled, (int(self.x - size//2), int(self.y - size//2)))
+                # Growing phase scaling
+                sw = int(target_size[0] * (0.4 + 0.6 * growth))
+                sh = int(target_size[1] * (0.4 + 0.6 * growth))
+                scaled = pygame.transform.smoothscale(spr, (sw, sh))
+                screen.blit(scaled, (int(self.x - sw//2), int(self.y - sh//2)))
 
 class AppleTree:
     """Level 2 Apple Tree"""
