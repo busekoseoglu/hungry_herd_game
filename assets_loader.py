@@ -5,7 +5,7 @@ import constants
 
 class AssetsLoader:
     """Handles asset loading and procedural generation"""
-    VERSION = "1.2.1"
+    VERSION = "1.2.2"
     
     REQUIRED_ASSETS = [
         'horse', 'player', 'apple', 'apple_pale', 'carrot', 'carrot_pale',
@@ -43,14 +43,21 @@ class AssetsLoader:
         self.sprites = {}
         self.sounds = {}
         
-        # Initialize mixer
-        try:
-            print(f"DEBUG: AssetsLoader v{self.VERSION} initialization...")
-            if not pygame.mixer.get_init():
-                pygame.mixer.init(44100, -16, 2, 512)
-                print("DEBUG: Audio mixer initialized.")
-        except Exception as e:
-            print(f"DEBUG: Audio mixer failure: {e}")
+        # Do NOT init mixer here for web, let's wait for user interaction
+        self.mixer_initialized = False
+        print(f"DEBUG: AssetsLoader v{self.VERSION} ready (mixer pending)...")
+
+    def unlock_audio(self):
+        """Called on user interaction to enable web audio context"""
+        if not self.mixer_initialized:
+            try:
+                print("DEBUG: Unlocking audio context...")
+                if not pygame.mixer.get_init():
+                    pygame.mixer.init(44100, -16, 2, 512)
+                self.mixer_initialized = True
+                print("DEBUG: Audio context UNLOCKED.")
+            except Exception as e:
+                print(f"DEBUG: Audio unlock failure: {e}")
 
     def load_all(self):
         """Main method to load or generate all assets"""
@@ -104,6 +111,9 @@ class AssetsLoader:
 
     def play_sound(self, name):
         """Plays a registered sound if loaded"""
+        if not self.mixer_initialized:
+            self.unlock_audio()
+
         if name in self.sounds:
             try:
                 print(f"Playing sound: {name}")
