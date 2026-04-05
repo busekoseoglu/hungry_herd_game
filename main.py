@@ -19,7 +19,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font_small = pygame.font.SysFont("Arial", 20, bold=True)
         self.font_large = pygame.font.SysFont("Arial", 40, bold=True)
-        self.version = "v1.0.7"
+        self.version = "v1.0.8"
         
         # Assets
         self.loader = AssetsLoader(os.path.join(os.getcwd(), "assets"))
@@ -94,9 +94,9 @@ class Game:
                         self._buy_item("CARROT_SEEDS")
                     if (event.key == pygame.K_2 or event.key == pygame.K_KP2) and self.level >= 2:
                         self._buy_item("APPLE_SAPLING")
-                    if event.key == pygame.K_3 or event.key == pygame.K_KP3:
+                    if (event.key == pygame.K_3 or event.key == pygame.K_KP3) and self.score >= 100:
                         self._buy_item("SPEED_BOOTS")
-                    if event.key == pygame.K_4 or event.key == pygame.K_KP4:
+                    if (event.key == pygame.K_4 or event.key == pygame.K_KP4) and self.score >= 100:
                         self._buy_item("BIG_BASKET")
 
     def _buy_item(self, item_type: str) -> bool:
@@ -119,6 +119,7 @@ class Game:
                     self.player.items.append("SAPLING")
                 return True
         elif item_type == "SPEED_BOOTS":
+            if self.score < 100: return False
             cost = constants.UPGRADE_SPEED_BOOST_PRICE
             if self.player.coins >= cost:
                 self.player.coins -= cost
@@ -126,6 +127,7 @@ class Game:
                 self.shop_open = False
                 return True
         elif item_type == "BIG_BASKET":
+            if self.score < 100: return False
             cost = constants.UPGRADE_BASKET_PRICE
             if self.player.coins >= cost:
                 self.player.coins -= cost
@@ -316,13 +318,15 @@ class Game:
             self.screen.blit(self.font_large.render(msg, True, (0,0,0)), rect.move(3,3))
             self.screen.blit(surf, rect)
 
-        # 6. Active Power-ups (Timers)
+        # 6. Active Power-ups (Timers) - Top Center below Level
+        timer_y = 115
         if self.player.speed_boost_timer > 0:
             msg = f"HIZ: {int(self.player.speed_boost_timer)}s"
-            self._draw_text(msg, (20, 100), (255, 100, 0), self.font_small)
+            self._draw_centered_text(msg, timer_y, (255, 100, 0), self.font_small)
+            timer_y += 25
         if self.player.basket_timer > 0:
             msg = f"SEPET: {int(self.player.basket_timer)}s"
-            self._draw_text(msg, (20, 130), (0, 255, 100), self.font_small)
+            self._draw_centered_text(msg, timer_y, (0, 255, 100), self.font_small)
 
         # Version tag
         self._draw_text(self.version, (constants.SCREEN_WIDTH - 60, constants.SCREEN_HEIGHT - 30), (100, 100, 100), self.font_small)
@@ -366,8 +370,11 @@ class Game:
             self._draw_text(f"[2] Elma Fidanı (1x) - {constants.APPLE_SAPLING_PRICE}", (overlay_x + 50, overlay_y + 130), (255, 255, 255), self.font_small)
         
         # Upgrades
-        self._draw_text(f"[3] Hız Botu (15sn) - {constants.UPGRADE_SPEED_BOOST_PRICE}", (overlay_x + 50, overlay_y + 180), (255, 150, 50), self.font_small)
-        self._draw_text(f"[4] Büyük Sepet (15sn) - {constants.UPGRADE_BASKET_PRICE}", (overlay_x + 50, overlay_y + 220), (50, 255, 150), self.font_small)
+        if self.score < 100:
+            self._draw_text("[!] Upgradeler 100 Puanda Açılır", (overlay_x + 50, overlay_y + 180), (255, 100, 100), self.font_small)
+        else:
+            self._draw_text(f"[3] Hız Botu (15sn) - {constants.UPGRADE_SPEED_BOOST_PRICE}", (overlay_x + 50, overlay_y + 180), (255, 150, 50), self.font_small)
+            self._draw_text(f"[4] Büyük Sepet (15sn) - {constants.UPGRADE_BASKET_PRICE}", (overlay_x + 50, overlay_y + 220), (50, 255, 150), self.font_small)
         
         self._draw_text("[SPACE] Kapat", (overlay_x + 180, overlay_y + 310), (200, 200, 200), self.font_small)
 
